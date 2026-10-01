@@ -1,6 +1,6 @@
 import {
   createPublicClient,
-  decodeFunctionData,
+  decodeEventLog,
   http,
   parseUnits,
   type Hash,
@@ -23,41 +23,58 @@ export async function verifyUsdcTransfer(input: {
   }
 
   const hash = input.txHash as Hash;
-  const [tx, receipt] = await Promise.all([
-    client.getTransaction({ hash }),
-    client.getTransactionReceipt({ hash }),
-  ]);
+  const receipt = await client.getTransactionReceipt({ hash });
 
-  if (receipt.status !== "success") throw new Error("Transaction failed");
-  if (tx.from.toLowerCase() !== input.from.toLowerCase()) {
-    throw new Error("Transaction sender does not match payment request");
+  if (receipt.status !== "success") {
+    throw new Error("Transaction failed");
   }
 
-  const expectedRecipient = input.to.toLowerCase();
-  const expectedErc20Amount = parseUnits(input.amount, 6);
+  const expectedFrom = input.from.toLowerCase();
+  const expectedTo = input.to.toLowerCase();
+  const expectedAmount = parseUnits(input.amount, 6);
 
-  if (tx.to?.toLowerCase() === USDC_ADDRESS.toLowerCase()) {
-    const decoded = decodeFunctionData({ abi: usdcAbi, data: tx.input });
-    if (decoded.functionName !== "transfer") {
-      throw new Error("Transaction is not a USDC transfer");
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== USDC_ADDRESS.toLowerCase()) continue;
+
+    try {
+      const decoded = decodeEventLog({
+        abi: usdcAbi,
+        eventName: "Transfer",
+        data: log.data,
+        topics: log.topics,
+      });
+
+      const args = decoded.args as {
+        from?: string;
+        to?: string;
+        value?: bigint;
+      };
+
+      if (
+        args.from?.toLowerCase() === expectedFrom &&
+        args.to?.toLowerCase() === expectedTo &&
+        args.value === expectedAmount
+      ) {
+        return { hash, blockNumber: receipt.blockNumber };
+      }
+    } catch {
+      // Ignore unrelated USDC events and keep scanning the receipt.
     }
-    const [recipient, amount] = decoded.args;
-    if (String(recipient).toLowerCase() !== expectedRecipient) {
-      throw new Error("USDC recipient does not match");
-    }
-    if (amount !== expectedErc20Amount) {
-      throw new Error("USDC amount does not match");
-    }
-    return { hash, blockNumber: receipt.blockNumber };
   }
 
-  if (tx.to?.toLowerCase() === expectedRecipient) {
+  // Arc also exposes USDC as the network's native gas asset. Keep a strict
+  // native-transfer fallback in case a wallet chooses that path.
+  const tx = await client.getTransaction({ hash });
+
+  if (
+    tx.from.toLowerCase() === expectedFrom &&
+    tx.to?.toLowerCase() === expectedTo
+  ) {
     const expectedNativeAmount = parseUnits(input.amount, 18);
-    if (tx.value !== expectedNativeAmount) {
-      throw new Error("Native USDC amount does not match");
+    if (tx.value === expectedNativeAmount) {
+      return { hash, blockNumber: receipt.blockNumber };
     }
-    return { hash, blockNumber: receipt.blockNumber };
   }
 
-  throw new Error("Transaction target does not match the payment request");
+  throw new Error("No matching USDC transfer was found in this Arc transaction");
 }
