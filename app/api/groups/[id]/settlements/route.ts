@@ -120,3 +120,48 @@ export async function POST(
     );
   }
 }
+
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const wallet = await getSessionAddress();
+  if (!wallet) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await context.params;
+  const sql = getSql();
+
+  const membership = await sql`
+    SELECT 1 FROM group_members
+    WHERE group_id = ${id} AND wallet_address = ${wallet}
+    LIMIT 1
+  `;
+  if (!membership[0]) {
+    return NextResponse.json({ error: "Group not found" }, { status: 404 });
+  }
+
+  const rounds = await sql`
+    SELECT id FROM settlement_rounds
+    WHERE group_id = ${id} AND status = 'open'
+    ORDER BY created_at DESC LIMIT 1
+  `;
+  if (!rounds[0]) {
+    return NextResponse.json({ ok: true });
+  }
+
+  const paid = await sql`
+    SELECT count(*)::int AS count
+    FROM settlement_transfers
+    WHERE round_id = ${rounds[0].id} AND status = 'paid'
+  `;
+  if (Number(paid[0]?.count || 0) > 0) {
+    return NextResponse.json(
+      { error: "A started settlement plan cannot be cancelled" },
+      { status: 409 },
+    );
+  }
+
+  await sql`DELETE FROM settlement_rounds WHERE id = ${rounds[0].id}`;
+  return NextResponse.json({ ok: true });
+}
