@@ -3,20 +3,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createConfig, http, WagmiProvider } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { defineChain } from "viem";
 import { useState } from "react";
-
-export const arcTestnet = defineChain({
-  id: 5042002,
-  name: "Arc Testnet",
-  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
-  rpcUrls: {
-    default: { http: [process.env.NEXT_PUBLIC_ARC_RPC_URL || "https://rpc.testnet.arc.network"] },
-  },
-  blockExplorers: {
-    default: { name: "Arc Explorer", url: "https://testnet.arcscan.app" },
-  },
-});
+import { arcTestnet } from "../lib/arc";
 
 const config = createConfig({
   chains: [arcTestnet],
@@ -26,7 +14,14 @@ const config = createConfig({
 });
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  const [client] = useState(() => new QueryClient());
+  const [client] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: { refetchOnWindowFocus: true, staleTime: 5_000 },
+        },
+      }),
+  );
 
   return (
     <WagmiProvider config={config}>
