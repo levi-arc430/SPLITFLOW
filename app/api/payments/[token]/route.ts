@@ -10,9 +10,10 @@ export async function GET(
   if (!isUuid(token)) {
     return NextResponse.json({ error: "Payment request not found" }, { status: 404 });
   }
-  const sql = await getSql();
+  try {
+    const sql = await getSql();
 
-  const rows = await sql`
+    const rows = await sql`
     SELECT es.payment_token, es.wallet_address AS debtor,
            es.amount_usdc::text, es.status, es.settled_tx_hash,
            e.id AS expense_id, e.description, e.paid_by AS recipient,
@@ -30,9 +31,15 @@ export async function GET(
     LIMIT 1
   `;
 
-  if (!rows[0]) {
-    return NextResponse.json({ error: "Payment request not found" }, { status: 404 });
-  }
+    if (!rows[0]) {
+      return NextResponse.json({ error: "Payment request not found" }, { status: 404 });
+    }
 
-  return NextResponse.json({ payment: rows[0] });
+    return NextResponse.json({ payment: rows[0] });
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to load this payment request right now" },
+      { status: 503 },
+    );
+  }
 }
