@@ -32,6 +32,7 @@ export type ExpenseSplit = {
   status: "pending" | "paid";
   payment_token: string;
   settled_tx_hash: string | null;
+  locked_by_settlement: boolean;
 };
 
 export type Transaction = {
