@@ -35,14 +35,17 @@ export async function sendUsdcWithCircle(
 }
 
 export function extractTxHash(value: unknown): `0x${string}` | null {
+  if (typeof value === "string") {
+    const match = value.match(/0x[a-fA-F0-9]{64}/);
+    return match ? (match[0] as `0x${string}`) : null;
+  }
+
   if (!value || typeof value !== "object") return null;
   const obj = value as Record<string, unknown>;
 
   for (const key of ["txHash", "transactionHash", "hash"]) {
-    const candidate = obj[key];
-    if (typeof candidate === "string" && /^0x[a-fA-F0-9]{64}$/.test(candidate)) {
-      return candidate as `0x${string}`;
-    }
+    const candidate = extractTxHash(obj[key]);
+    if (candidate) return candidate;
   }
 
   for (const child of Object.values(obj)) {
