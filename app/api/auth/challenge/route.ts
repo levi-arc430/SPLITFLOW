@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAddress } from "viem";
-import { createAuthMessage } from "../../../../lib/auth-message";
+import { createAuthChallenge } from "../../../../lib/auth-message";
+
+const CHALLENGE_COOKIE = "splitflow_auth_nonce";
 
 export async function GET(request: NextRequest) {
   const address = request.nextUrl.searchParams.get("address") || "";
@@ -9,5 +11,16 @@ export async function GET(request: NextRequest) {
   }
 
   const domain = request.headers.get("host") || "splitflow";
-  return NextResponse.json({ message: createAuthMessage(address, domain) });
+  const challenge = createAuthChallenge(address, domain);
+  const response = NextResponse.json({ message: challenge.message });
+
+  response.cookies.set(CHALLENGE_COOKIE, challenge.nonce, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 5 * 60,
+  });
+
+  return response;
 }
