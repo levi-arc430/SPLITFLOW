@@ -53,3 +53,8 @@ The app starts on Arc Testnet (chain ID 5042002). Network-specific addresses are
 ## Contract
 
 `contracts/SplitFlowSettlement.sol` is intentionally non-custodial. Users authorize transfers from their own wallets; SplitFlow never holds user private keys.
+
+
+## Deployment
+
+The Vercel project is linked to the `main` branch. Production deployments are triggered from GitHub pushes after Vercel project setup.
