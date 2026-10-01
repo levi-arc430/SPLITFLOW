@@ -7,7 +7,7 @@ export async function GET() {
   const wallet = await getSessionAddress();
   if (!wallet) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const sql = getSql();
+  const sql = await getSql();
   const groups = await sql`
     SELECT DISTINCT g.id, g.name, g.created_by, g.created_at,
       (SELECT count(*)::int FROM group_members gm2 WHERE gm2.group_id = g.id) AS member_count,
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sql = getSql();
+    const sql = await getSql();
     const [group] = await sql`
       INSERT INTO groups (name, created_by)
       VALUES (${name}, ${wallet})
