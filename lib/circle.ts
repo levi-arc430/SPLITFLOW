@@ -31,7 +31,7 @@ export async function sendUsdcWithCircle(
     token: "USDC",
   });
 
-  return result as CircleSendResult;
+  return result as unknown as CircleSendResult;
 }
 
 export function extractTxHash(value: unknown): `0x${string}` | null {
