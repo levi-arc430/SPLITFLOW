@@ -10,8 +10,8 @@ type SessionPayload = {
 };
 
 function secret() {
-  const value = process.env.SESSION_SECRET;
-  if (!value) throw new Error("SESSION_SECRET is not configured");
+  const value = process.env.SESSION_SECRET || process.env.DATABASE_URL;
+  if (!value) throw new Error("DATABASE_URL is not configured");
   return value;
 }
 
