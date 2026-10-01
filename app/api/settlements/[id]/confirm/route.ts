@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSql } from "../../../../../lib/db";
 import { getSessionAddress } from "../../../../../lib/session";
 import { verifyUsdcTransfer } from "../../../../../lib/verify-transfer";
+import { isUuid, safeServerMessage } from "../../../../../lib/validation";
 
 export async function POST(
   request: NextRequest,
@@ -12,6 +13,9 @@ export async function POST(
 
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) {
+      return NextResponse.json({ error: "Settlement transfer not found" }, { status: 404 });
+    }
     const body = (await request.json()) as { txHash?: string };
     if (!body.txHash) {
       return NextResponse.json({ error: "Transaction hash is required" }, { status: 400 });
@@ -20,7 +24,7 @@ export async function POST(
     const sql = await getSql();
     const rows = await sql`
       SELECT st.id, st.round_id, st.from_wallet, st.to_wallet,
-             st.amount_usdc::text, st.status, sr.group_id
+             st.amount_usdc::text, st.status, st.tx_hash, sr.group_id
       FROM settlement_transfers st
       JOIN settlement_rounds sr ON sr.id = st.round_id
       WHERE st.id = ${id}
@@ -33,6 +37,14 @@ export async function POST(
     }
     if (String(transfer.from_wallet).toLowerCase() !== wallet) {
       return NextResponse.json({ error: "This transfer belongs to another wallet" }, { status: 403 });
+    }
+
+    if (transfer.status === "paid") {
+      return NextResponse.json({
+        status: "paid",
+        roundStatus: "completed",
+        txHash: transfer.tx_hash || null,
+      });
     }
 
     if (transfer.status !== "paid") {
@@ -97,7 +109,7 @@ export async function POST(
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to verify settlement" },
+      { error: safeServerMessage(error, "Unable to verify settlement") },
       { status: 400 },
     );
   }
