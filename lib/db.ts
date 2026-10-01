@@ -8,7 +8,9 @@ function databaseUrl() {
   return url;
 }
 
-async function ensureSchema(sql: ReturnType<typeof neon>) {
+export async function getSql() {
+  const sql = neon(databaseUrl());
+
   if (!schemaPromise) {
     schemaPromise = (async () => {
       await sql`CREATE EXTENSION IF NOT EXISTS pgcrypto`;
@@ -32,6 +34,7 @@ async function ensureSchema(sql: ReturnType<typeof neon>) {
           UNIQUE(group_id, wallet_address)
         )
       `;
+
       await sql`
         CREATE INDEX IF NOT EXISTS group_members_wallet_idx
         ON group_members(wallet_address)
@@ -64,6 +67,7 @@ async function ensureSchema(sql: ReturnType<typeof neon>) {
           created_at timestamptz NOT NULL DEFAULT now()
         )
       `;
+
       await sql`
         CREATE INDEX IF NOT EXISTS expense_splits_payment_idx
         ON expense_splits(payment_token)
@@ -120,6 +124,7 @@ async function ensureSchema(sql: ReturnType<typeof neon>) {
           created_at timestamptz NOT NULL DEFAULT now()
         )
       `;
+
       await sql`
         CREATE INDEX IF NOT EXISTS transactions_group_idx
         ON transactions(group_id, created_at DESC)
@@ -131,10 +136,5 @@ async function ensureSchema(sql: ReturnType<typeof neon>) {
   }
 
   await schemaPromise;
-}
-
-export async function getSql() {
-  const sql = neon(databaseUrl());
-  await ensureSchema(sql);
   return sql;
 }
