@@ -10,7 +10,7 @@ SplitFlow is a non-custodial group payments app for settling shared expenses in 
 - Track paid and pending balances
 - Shareable payment requests
 - Smart Settlement optimization
-- USDC settlement contract
+- Circle App Kit USDC settlement on Arc
 - Arc transaction history
 
 ## Smart Settlement
@@ -36,7 +36,7 @@ Optimized:
 
 ## Stack
 
-Next.js, React, TypeScript, wagmi, viem, TanStack Query, Solidity.
+Next.js, React, TypeScript, wagmi, viem, TanStack Query, Circle App Kit, Neon Postgres.
 
 ## Local development
 
@@ -50,9 +50,11 @@ npm run dev
 
 The app starts on Arc Testnet (chain ID 5042002). Set DATABASE_URL in production; SplitFlow automatically creates the required Postgres schema on first database use.
 
-## Contract
+## Settlement architecture
 
-`contracts/SplitFlowSettlement.sol` is intentionally non-custodial. Users authorize transfers from their own wallets; SplitFlow never holds user private keys.
+The MVP settles USDC directly from each user's connected browser wallet on Arc using Circle App Kit. SplitFlow verifies the resulting Arc transaction onchain before changing a request from Pending to Paid.
+
+`contracts/SplitFlowSettlement.sol` is retained as an experimental reference for a future contract-based batching design. It is not used by the current MVP runtime.
 
 
 ## Deployment
