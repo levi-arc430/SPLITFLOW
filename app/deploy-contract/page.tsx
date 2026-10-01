@@ -27,6 +27,7 @@ import {
   walletErrorMessage,
   type BrowserProvider,
 } from "../../lib/wallet-network";
+import { openMetaMaskMobileDapp } from "../../lib/mobile-wallet";
 
 function short(value?: string | null) {
   if (!value) return "—";
@@ -120,7 +121,7 @@ export default function DeployContractPage() {
     setError("");
 
     if (!injected) {
-      setError("No injected EVM wallet was detected. Install or enable MetaMask, then reload.");
+      openMetaMaskMobileDapp();
       return;
     }
 
@@ -148,7 +149,7 @@ export default function DeployContractPage() {
     setContractAddress(null);
 
     if (!injected) {
-      setError("No injected EVM wallet was detected. Install or enable MetaMask, then reload.");
+      openMetaMaskMobileDapp();
       return;
     }
 
@@ -324,7 +325,11 @@ export default function DeployContractPage() {
                 ) : (
                   <Wallet size={17} />
                 )}
-                {status === "connecting" ? "Connecting…" : "Connect MetaMask"}
+                {status === "connecting"
+                  ? "Connecting…"
+                  : provider
+                    ? "Connect MetaMask"
+                    : "Open in MetaMask"}
               </button>
             ) : (
               <button

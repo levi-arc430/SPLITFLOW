@@ -32,6 +32,7 @@ import {
   usdcAbi,
 } from "../lib/arc";
 import { extractTxHash, sendUsdcWithCircle } from "../lib/circle";
+import { openMetaMaskMobileDapp } from "../lib/mobile-wallet";
 import type {
   Expense,
   ExpenseSplit,
@@ -134,6 +135,15 @@ export default function SplitFlowApp() {
     }
   }, [groups.data, selectedGroup]);
 
+  function connectWallet() {
+    if (preferredConnector) {
+      connect({ connector: preferredConnector });
+      return;
+    }
+
+    openMetaMaskMobileDapp();
+  }
+
   async function signIn() {
     if (!address) return;
     setAuthError("");
@@ -188,8 +198,8 @@ export default function SplitFlowApp() {
           {!isConnected ? (
             <button
               className="wallet"
-              disabled={isConnecting || !preferredConnector}
-              onClick={() => preferredConnector && connect({ connector: preferredConnector })}
+              disabled={isConnecting}
+              onClick={connectWallet}
             >
               <Wallet size={16} />
               {isConnecting ? "Connecting…" : "Connect wallet"}
@@ -214,8 +224,8 @@ export default function SplitFlowApp() {
           </p>
           <button
             className="primary"
-            disabled={!preferredConnector}
-            onClick={() => preferredConnector && connect({ connector: preferredConnector })}
+            disabled={isConnecting}
+            onClick={connectWallet}
           >
             <Wallet size={17} /> Connect wallet
           </button>

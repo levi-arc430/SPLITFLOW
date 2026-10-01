@@ -25,6 +25,7 @@ import {
 } from "../../../lib/arc";
 import { extractTxHash, sendUsdcWithCircle } from "../../../lib/circle";
 import type { PaymentRequest } from "../../../lib/types";
+import { openMetaMaskMobileDapp } from "../../../lib/mobile-wallet";
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -97,6 +98,15 @@ export default function PaymentPage() {
   const intendedWallet =
     Boolean(address && payment) &&
     address!.toLowerCase() === payment!.debtor.toLowerCase();
+
+  function connectWallet() {
+    if (preferredConnector) {
+      connect({ connector: preferredConnector });
+      return;
+    }
+
+    openMetaMaskMobileDapp();
+  }
 
   async function pay() {
     if (!payment || !connector) return;
@@ -229,8 +239,8 @@ export default function PaymentPage() {
             {!isConnected ? (
               <button
                 className="primary payButton"
-                disabled={connecting || !preferredConnector}
-                onClick={() => preferredConnector && connect({ connector: preferredConnector })}
+                disabled={connecting}
+                onClick={connectWallet}
               >
                 <Wallet size={17} />
                 {connecting ? "Connecting…" : "Connect wallet to pay"}
