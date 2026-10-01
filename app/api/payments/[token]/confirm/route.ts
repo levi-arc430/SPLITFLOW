@@ -60,13 +60,7 @@ export async function POST(
       amount: String(payment.amount_usdc),
     });
 
-    await sql`
-      UPDATE expense_splits
-      SET status = 'paid', settled_tx_hash = ${body.txHash}
-      WHERE id = ${payment.split_id}
-    `;
-
-    await sql`
+    const inserted = await sql`
       INSERT INTO transactions (
         group_id, expense_id, payment_token, from_wallet, to_wallet,
         amount_usdc, tx_hash, status
@@ -77,7 +71,33 @@ export async function POST(
         ${String(payment.recipient).toLowerCase()},
         ${payment.amount_usdc}, ${body.txHash}, 'confirmed'
       )
-      ON CONFLICT (tx_hash) DO UPDATE SET status = 'confirmed'
+      ON CONFLICT (tx_hash) DO NOTHING
+      RETURNING id
+    `;
+
+    if (!inserted[0]) {
+      const existingTx = await sql`
+        SELECT payment_token, settlement_transfer_id
+        FROM transactions
+        WHERE tx_hash = ${body.txHash}
+        LIMIT 1
+      `;
+
+      if (
+        !existingTx[0] ||
+        String(existingTx[0].payment_token || "") !== String(payment.payment_token)
+      ) {
+        return NextResponse.json(
+          { error: "This Arc transaction was already used for another SplitFlow payment" },
+          { status: 409 },
+        );
+      }
+    }
+
+    await sql`
+      UPDATE expense_splits
+      SET status = 'paid', settled_tx_hash = ${body.txHash}
+      WHERE id = ${payment.split_id}
     `;
 
     return NextResponse.json({ status: "paid", txHash: body.txHash });
