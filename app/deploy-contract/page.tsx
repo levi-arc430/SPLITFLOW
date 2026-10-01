@@ -3,21 +3,22 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check, ExternalLink, Loader2, Rocket, Wallet } from "lucide-react";
-import type { Abi, Address, Hex } from "viem";
+import { createPublicClient, createWalletClient, custom, http } from "viem";
+import type { Abi, Address, EIP1193Provider, Hex } from "viem";
 import {
   useAccount,
   useBalance,
   useChainId,
   useConnect,
-  usePublicClient,
   useSwitchChain,
-  useWalletClient,
 } from "wagmi";
 import artifact from "../../lib/generated/SplitFlowSettlement.json";
 import {
   ARC_EXPLORER,
   ARC_TESTNET_CHAIN_ID,
+  ARC_TESTNET_RPC,
   USDC_ADDRESS,
+  arcTestnet,
 } from "../../lib/arc";
 
 function short(value?: string | null) {
@@ -26,10 +27,8 @@ function short(value?: string | null) {
 }
 
 export default function DeployContractPage() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, connector } = useAccount();
   const { connectors, connect, isPending: connecting } = useConnect();
-  const { data: walletClient } = useWalletClient();
-  const publicClient = usePublicClient({ chainId: ARC_TESTNET_CHAIN_ID });
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const nativeBalance = useBalance({
@@ -48,13 +47,18 @@ export default function DeployContractPage() {
   const [error, setError] = useState("");
 
   async function deploy() {
-    if (!address || !walletClient || !publicClient) return;
-
     setError("");
     setTxHash(null);
     setContractAddress(null);
 
     try {
+      if (!address) {
+        throw new Error("Connect the deployment wallet first");
+      }
+
+      if (!connector) {
+        throw new Error("Connected wallet provider is unavailable. Reconnect the wallet and try again.");
+      }
       if (chainId !== ARC_TESTNET_CHAIN_ID) {
         await switchChainAsync({ chainId: ARC_TESTNET_CHAIN_ID });
       }
@@ -64,6 +68,22 @@ export default function DeployContractPage() {
           "This wallet has no Arc Testnet gas balance. Fund it from the Arc/Circle testnet faucet first.",
         );
       }
+
+      const provider = await connector.getProvider();
+      if (!provider) {
+        throw new Error("Unable to access the connected wallet provider");
+      }
+
+      const walletClient = createWalletClient({
+        account: address,
+        chain: arcTestnet,
+        transport: custom(provider as EIP1193Provider),
+      });
+
+      const publicClient = createPublicClient({
+        chain: arcTestnet,
+        transport: http(ARC_TESTNET_RPC),
+      });
 
       setStatus("signing");
 
