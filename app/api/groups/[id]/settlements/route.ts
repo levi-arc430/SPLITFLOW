@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { formatUnits, parseUnits } from "viem";
 import { getSql } from "../../../../../lib/db";
 import { getSessionAddress } from "../../../../../lib/session";
 import { optimizeSettlements } from "../../../../../lib/settlement";
@@ -64,17 +65,18 @@ export async function POST(
       return NextResponse.json({ error: "This group is already settled" }, { status: 400 });
     }
 
-    const balanceMap = new Map<string, number>();
+    const balanceMap = new Map<string, bigint>();
     for (const row of pending) {
       const debtor = String(row.debtor).toLowerCase();
       const creditor = String(row.creditor).toLowerCase();
-      const amount = Number(row.amount_usdc);
-      balanceMap.set(debtor, (balanceMap.get(debtor) || 0) - amount);
-      balanceMap.set(creditor, (balanceMap.get(creditor) || 0) + amount);
+      const units = parseUnits(String(row.amount_usdc), 6);
+
+      balanceMap.set(debtor, (balanceMap.get(debtor) || 0n) - units);
+      balanceMap.set(creditor, (balanceMap.get(creditor) || 0n) + units);
     }
 
     const optimized = optimizeSettlements(
-      [...balanceMap.entries()].map(([member, amount]) => ({ member, amount })),
+      [...balanceMap.entries()].map(([member, units]) => ({ member, units })),
     );
 
     if (!optimized.length) {
@@ -103,7 +105,7 @@ export async function POST(
         )
         VALUES (
           ${round.id}, ${transfer.from.toLowerCase()},
-          ${transfer.to.toLowerCase()}, ${transfer.amount.toFixed(6)}
+          ${transfer.to.toLowerCase()}, ${formatUnits(transfer.units, 6)}
         )
         RETURNING id, round_id, from_wallet, to_wallet,
                   amount_usdc::text, status, tx_hash
