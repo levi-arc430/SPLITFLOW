@@ -39,23 +39,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Signature does not match wallet" }, { status: 401 });
     }
 
-    await setSession(recovered);
+    await setSession({ message: body.message, signature: body.signature });
     const response = NextResponse.json({ address: recovered.toLowerCase() });
     response.cookies.set(CHALLENGE_COOKIE, "", { path: "/", maxAge: 0 });
     return response;
   } catch (error) {
-    const message =
-      error instanceof Error &&
-      (error.message.includes("DATABASE_URL") ||
-        error.message.includes("SESSION_SECRET"))
-        ? "SplitFlow server configuration is still syncing. Please try again."
-        : error instanceof Error
-          ? error.message
-          : "Unable to verify wallet";
-
     return NextResponse.json(
-      { error: message },
-      { status: message.includes("server configuration") ? 500 : 400 },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to verify wallet",
+      },
+      { status: 400 },
     );
   }
 }
