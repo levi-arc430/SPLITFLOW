@@ -32,9 +32,18 @@ export async function POST(request: NextRequest) {
     await setSession(recovered);
     return NextResponse.json({ address: recovered.toLowerCase() });
   } catch (error) {
+    const message =
+      error instanceof Error &&
+      (error.message.includes("DATABASE_URL") ||
+        error.message.includes("SESSION_SECRET"))
+        ? "SplitFlow server configuration is still syncing. Please try again."
+        : error instanceof Error
+          ? error.message
+          : "Unable to verify wallet";
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to verify wallet" },
-      { status: 400 },
+      { error: message },
+      { status: message.includes("server configuration") ? 500 : 400 },
     );
   }
 }
