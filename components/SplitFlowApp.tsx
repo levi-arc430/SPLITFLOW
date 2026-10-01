@@ -63,9 +63,15 @@ function shortAddress(value?: string | null) {
   return value.slice(0, 6) + "…" + value.slice(-4);
 }
 
-function displayName(member: GroupMember | undefined, wallet: string) {
-  if (!member) return shortAddress(wallet);
-  return member.display_name || shortAddress(wallet);
+function displayName(
+  member: GroupMember | undefined,
+  wallet: string,
+  currentWallet?: string,
+) {
+  if (currentWallet?.toLowerCase() === wallet.toLowerCase()) return "You";
+  const savedName = member?.display_name?.trim();
+  if (savedName && savedName.toLowerCase() !== "you") return savedName;
+  return shortAddress(wallet);
 }
 
 export default function SplitFlowApp() {
@@ -450,6 +456,18 @@ function GroupWorkspace({
       setActionError(e instanceof Error ? e.message : "Unable to optimize settlement"),
   });
 
+  const cancelSettlement = useMutation({
+    mutationFn: () =>
+      api("/api/groups/" + groupId + "/settlements", { method: "DELETE" }),
+    onSuccess: async () => {
+      setActionError("");
+      await queryClient.invalidateQueries({ queryKey: ["group", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["groups"] });
+    },
+    onError: (e) =>
+      setActionError(e instanceof Error ? e.message : "Unable to cancel settlement plan"),
+  });
+
   async function copyPaymentLink(token: string) {
     const url = window.location.origin + "/pay/" + token;
     await navigator.clipboard.writeText(url);
@@ -522,6 +540,7 @@ function GroupWorkspace({
   const planTransfers = openRound
     ? data.settlementTransfers.filter((t) => t.round_id === openRound.id)
     : [];
+  const planHasPayments = planTransfers.some((t) => t.status === "paid");
 
   return (
     <div className="workspaceStack">
@@ -533,14 +552,19 @@ function GroupWorkspace({
             <div className="memberAvatars">
               {data.members.map((m) => (
                 <span key={m.id} title={m.wallet_address}>
-                  {(m.display_name || m.wallet_address.slice(2, 4)).slice(0, 2).toUpperCase()}
+                  {displayName(m, m.wallet_address, wallet).slice(0, 2).toUpperCase()}
                 </span>
               ))}
               <small>{data.members.length} members</small>
             </div>
           </div>
-          <button className="primary" onClick={() => setShowExpense(true)}>
-            <ReceiptText size={16} /> Add expense
+          <button
+            className="primary"
+            disabled={Boolean(openRound)}
+            title={openRound ? "Finish or cancel Smart Settlement first" : undefined}
+            onClick={() => setShowExpense(true)}
+          >
+            <ReceiptText size={16} /> {openRound ? "Settlement active" : "Add expense"}
           </button>
         </div>
 
@@ -588,6 +612,15 @@ function GroupWorkspace({
               <b>{pendingSplits.length} expense debts</b>
               <ArrowRight size={16} />
               <b>{planTransfers.length} optimized transfers</b>
+              {!planHasPayments && (
+                <button
+                  className="iconTextButton"
+                  disabled={cancelSettlement.isPending}
+                  onClick={() => cancelSettlement.mutate()}
+                >
+                  {cancelSettlement.isPending ? "Cancelling…" : "Cancel plan"}
+                </button>
+              )}
             </div>
             <div className="settlementList">
               {planTransfers.map((transfer) => {
@@ -600,6 +633,7 @@ function GroupWorkspace({
                         {displayName(
                           memberByWallet.get(transfer.from_wallet.toLowerCase()),
                           transfer.from_wallet,
+                          wallet,
                         )}
                       </b>
                       <ArrowRight size={14} />
@@ -607,6 +641,7 @@ function GroupWorkspace({
                         {displayName(
                           memberByWallet.get(transfer.to_wallet.toLowerCase()),
                           transfer.to_wallet,
+                          wallet,
                         )}
                       </b>
                       <span>{"$" + Number(transfer.amount_usdc).toFixed(2) + " USDC"}</span>
@@ -661,6 +696,7 @@ function GroupWorkspace({
                 expense={expense}
                 splits={data.splits.filter((s) => s.expense_id === expense.id)}
                 members={data.members}
+                currentWallet={wallet}
                 copied={copied}
                 copyPaymentLink={copyPaymentLink}
               />
@@ -723,12 +759,14 @@ function ExpenseRow({
   expense,
   splits,
   members,
+  currentWallet,
   copied,
   copyPaymentLink,
 }: {
   expense: Expense;
   splits: ExpenseSplit[];
   members: GroupMember[];
+  currentWallet: string;
   copied: string;
   copyPaymentLink: (token: string) => void;
 }) {
@@ -743,7 +781,7 @@ function ExpenseRow({
         <div>
           <b>{expense.description}</b>
           <span>
-            Paid by {displayName(payer, expense.paid_by)} • {expense.split_type} split
+            Paid by {displayName(payer, expense.paid_by, currentWallet)} • {expense.split_type} split
           </span>
         </div>
         <div className="expenseAmount">
@@ -763,12 +801,14 @@ function ExpenseRow({
           return (
             <div className="splitRow" key={split.id}>
               <div>
-                <b>{displayName(member, split.wallet_address)}</b>
+                <b>{displayName(member, split.wallet_address, currentWallet)}</b>
                 <span>{"$" + Number(split.amount_usdc).toFixed(2)}</span>
               </div>
               <div className="splitActions">
                 {split.status === "paid" ? (
                   <span className="statusPaid"><Check size={13} /> Paid</span>
+                ) : split.locked_by_settlement ? (
+                  <span className="statusPending">Smart plan</span>
                 ) : (
                   <>
                     <span className="statusPending">Pending</span>
@@ -886,7 +926,7 @@ function CreateExpenseModal({
               >
                 {group.members.map((m) => (
                   <option value={m.wallet_address} key={m.id}>
-                    {displayName(m, m.wallet_address)}
+                    {displayName(m, m.wallet_address, wallet)}
                   </option>
                 ))}
               </select>
@@ -914,7 +954,7 @@ function CreateExpenseModal({
             <div className="splitPreview">
               {group.members.map((m) => (
                 <div key={m.id}>
-                  <span>{displayName(m, m.wallet_address)}</span>
+                  <span>{displayName(m, m.wallet_address, wallet)}</span>
                   <b>{"$" + equalPreview.toFixed(2)}</b>
                 </div>
               ))}
