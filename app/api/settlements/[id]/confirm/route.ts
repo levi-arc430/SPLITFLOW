@@ -50,13 +50,7 @@ export async function POST(
         amount: String(transfer.amount_usdc),
       });
 
-      await sql`
-        UPDATE settlement_transfers
-        SET status = 'paid', tx_hash = ${body.txHash}
-        WHERE id = ${id}
-      `;
-
-      await sql`
+      const inserted = await sql`
         INSERT INTO transactions (
           group_id, settlement_transfer_id, from_wallet, to_wallet,
           amount_usdc, tx_hash, status
@@ -67,7 +61,33 @@ export async function POST(
           ${String(transfer.to_wallet).toLowerCase()},
           ${transfer.amount_usdc}, ${body.txHash}, 'confirmed'
         )
-        ON CONFLICT (tx_hash) DO UPDATE SET status = 'confirmed'
+        ON CONFLICT (tx_hash) DO NOTHING
+        RETURNING id
+      `;
+
+      if (!inserted[0]) {
+        const existingTx = await sql`
+          SELECT payment_token, settlement_transfer_id
+          FROM transactions
+          WHERE tx_hash = ${body.txHash}
+          LIMIT 1
+        `;
+
+        if (
+          !existingTx[0] ||
+          String(existingTx[0].settlement_transfer_id || "") !== String(id)
+        ) {
+          return NextResponse.json(
+            { error: "This Arc transaction was already used for another SplitFlow payment" },
+            { status: 409 },
+          );
+        }
+      }
+
+      await sql`
+        UPDATE settlement_transfers
+        SET status = 'paid', tx_hash = ${body.txHash}
+        WHERE id = ${id}
       `;
     }
 
