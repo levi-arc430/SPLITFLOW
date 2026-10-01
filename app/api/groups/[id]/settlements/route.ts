@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSql } from "../../../../../lib/db";
 import { getSessionAddress } from "../../../../../lib/session";
 import { optimizeSettlements } from "../../../../../lib/settlement";
+import { isUuid, safeServerMessage } from "../../../../../lib/validation";
 
 export async function POST(
   _request: Request,
@@ -12,6 +13,9 @@ export async function POST(
 
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) {
+      return NextResponse.json({ error: "Group not found" }, { status: 404 });
+    }
     const sql = await getSql();
 
     const membership = await sql`
@@ -115,7 +119,7 @@ export async function POST(
     }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to create settlement plan" },
+      { error: safeServerMessage(error, "Unable to create settlement plan") },
       { status: 500 },
     );
   }
@@ -130,6 +134,9 @@ export async function DELETE(
   if (!wallet) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await context.params;
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "Group not found" }, { status: 404 });
+  }
   const sql = await getSql();
 
   const membership = await sql`
