@@ -10,7 +10,7 @@ export async function GET(
   if (!wallet) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await context.params;
-  const sql = getSql();
+  const sql = await getSql();
 
   const membership = await sql`
     SELECT g.id, g.name, g.created_by, g.created_at
