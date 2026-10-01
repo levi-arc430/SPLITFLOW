@@ -63,3 +63,6 @@ The Vercel project is linked to the `main` branch. Production deployments are tr
 
 
 Deployment verification: wallet sessions are signed by the connected wallet.
+
+
+Deployment retry after duplicate Vercel projects were removed.
