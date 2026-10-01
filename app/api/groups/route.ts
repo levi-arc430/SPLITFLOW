@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAddress, isAddress } from "viem";
 import { getSql } from "../../../lib/db";
 import { getSessionAddress } from "../../../lib/session";
+import { safeServerMessage } from "../../../lib/validation";
 
 export async function GET() {
   const wallet = await getSessionAddress();
@@ -39,8 +40,15 @@ export async function POST(request: NextRequest) {
     }
 
     const incoming = body.members || [];
+    if (incoming.length > 49) {
+      return NextResponse.json(
+        { error: "A group can have at most 50 members in this MVP" },
+        { status: 400 },
+      );
+    }
+
     const memberMap = new Map<string, { wallet: string; name: string | null }>();
-    memberMap.set(wallet, { wallet, name: "You" });
+    memberMap.set(wallet, { wallet, name: null });
 
     for (const member of incoming) {
       const raw = member.wallet?.trim() || "";
@@ -79,7 +87,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ group }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to create group" },
+      { error: safeServerMessage(error, "Unable to create group") },
       { status: 500 },
     );
   }
