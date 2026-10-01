@@ -3,6 +3,8 @@ import { recoverMessageAddress } from "viem";
 import { parseAuthMessage } from "../../../../lib/auth-message";
 import { setSession } from "../../../../lib/session";
 
+const CHALLENGE_COOKIE = "splitflow_auth_nonce";
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as {
@@ -20,6 +22,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Sign-in domain mismatch" }, { status: 400 });
     }
 
+    const challengeNonce = request.cookies.get(CHALLENGE_COOKIE)?.value?.toLowerCase();
+    if (!challengeNonce || challengeNonce !== parsed.nonce) {
+      return NextResponse.json(
+        { error: "Sign-in request expired. Please try again." },
+        { status: 401 },
+      );
+    }
+
     const recovered = await recoverMessageAddress({
       message: body.message,
       signature: body.signature,
@@ -30,7 +40,9 @@ export async function POST(request: NextRequest) {
     }
 
     await setSession(recovered);
-    return NextResponse.json({ address: recovered.toLowerCase() });
+    const response = NextResponse.json({ address: recovered.toLowerCase() });
+    response.cookies.set(CHALLENGE_COOKIE, "", { path: "/", maxAge: 0 });
+    return response;
   } catch (error) {
     const message =
       error instanceof Error &&
