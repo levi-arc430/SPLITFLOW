@@ -42,7 +42,7 @@ export async function POST(
       return NextResponse.json({ error: "Amount must be greater than zero" }, { status: 400 });
     }
 
-    const sql = getSql();
+    const sql = await getSql();
     const membership = await sql`
       SELECT wallet_address, display_name
       FROM group_members
