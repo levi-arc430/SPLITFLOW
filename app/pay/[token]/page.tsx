@@ -67,6 +67,9 @@ export default function PaymentPage() {
   const token = String(params.token);
   const { address, isConnected, connector } = useAccount();
   const { connectors, connect, isPending: connecting } = useConnect();
+  const preferredConnector =
+    connectors.find((item) => item.name.toLowerCase().includes("metamask")) ??
+    connectors[0];
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const [paying, setPaying] = useState(false);
@@ -230,8 +233,8 @@ export default function PaymentPage() {
             {!isConnected ? (
               <button
                 className="primary payButton"
-                disabled={connecting || !connectors[0]}
-                onClick={() => connectors[0] && connect({ connector: connectors[0] })}
+                disabled={connecting || !preferredConnector}
+                onClick={() => preferredConnector && connect({ connector: preferredConnector })}
               >
                 <Wallet size={17} />
                 {connecting ? "Connecting…" : "Connect wallet to pay"}
