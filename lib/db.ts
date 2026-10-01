@@ -3,8 +3,12 @@ import { neon } from "@neondatabase/serverless";
 let schemaPromise: Promise<void> | null = null;
 
 function databaseUrl() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not configured");
+  const url =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.NEON_DATABASE_URL;
+
+  if (!url) throw new Error("Database connection is not configured");
   return url;
 }
 
