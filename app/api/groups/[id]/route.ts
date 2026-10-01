@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSql } from "../../../../lib/db";
 import { getSessionAddress } from "../../../../lib/session";
+import { isUuid } from "../../../../lib/validation";
 
 export async function GET(
   _request: Request,
@@ -10,6 +11,9 @@ export async function GET(
   if (!wallet) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await context.params;
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "Group not found" }, { status: 404 });
+  }
   const sql = await getSql();
 
   const membership = await sql`
@@ -37,7 +41,13 @@ export async function GET(
     `,
     sql`
       SELECT es.id, es.expense_id, es.wallet_address, es.amount_usdc::text,
-             es.status, es.payment_token, es.settled_tx_hash
+             es.status, es.payment_token, es.settled_tx_hash,
+             EXISTS (
+               SELECT 1
+               FROM settlement_round_splits srs
+               JOIN settlement_rounds sr ON sr.id = srs.round_id
+               WHERE srs.split_id = es.id AND sr.status = 'open'
+             ) AS locked_by_settlement
       FROM expense_splits es
       JOIN expenses e ON e.id = es.expense_id
       WHERE e.group_id = ${id}
