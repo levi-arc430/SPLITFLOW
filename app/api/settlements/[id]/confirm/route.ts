@@ -39,13 +39,8 @@ export async function POST(
       return NextResponse.json({ error: "This transfer belongs to another wallet" }, { status: 403 });
     }
 
-    if (transfer.status === "paid") {
-      return NextResponse.json({
-        status: "paid",
-        roundStatus: "completed",
-        txHash: transfer.tx_hash || null,
-      });
-    }
+    const confirmedHash =
+      transfer.status === "paid" ? transfer.tx_hash : body.txHash;
 
     if (transfer.status !== "paid") {
       await verifyUsdcTransfer({
@@ -105,7 +100,7 @@ export async function POST(
     return NextResponse.json({
       status: "paid",
       roundStatus,
-      txHash: body.txHash,
+      txHash: confirmedHash || null,
     });
   } catch (error) {
     return NextResponse.json(
