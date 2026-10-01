@@ -16,7 +16,7 @@ export async function POST(
     const sql = getSql();
     const rows = await sql`
       SELECT es.id AS split_id, es.payment_token, es.wallet_address AS debtor,
-             es.amount_usdc::text, es.status, e.id AS expense_id,
+             es.amount_usdc::text, es.status, es.settled_tx_hash, e.id AS expense_id,
              e.group_id, e.paid_by AS recipient,
              EXISTS (
                SELECT 1
