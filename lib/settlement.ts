@@ -1,66 +1,82 @@
-export type Balance = { member: string; amount: number };
-export type Settlement = { from: string; to: string; amount: number };
+export type Balance = { member: string; units: bigint };
+export type Settlement = { from: string; to: string; units: bigint };
 
-const SCALE = 1_000_000;
-
-type Node = { member: string; units: number };
+type Node = { member: string; units: bigint };
 
 function greedy(debtors: Node[], creditors: Node[]): Settlement[] {
   const result: Settlement[] = [];
+  const ds = debtors
+    .map((x) => ({ ...x }))
+    .sort((a, b) => (a.units === b.units ? 0 : a.units > b.units ? -1 : 1));
+  const cs = creditors
+    .map((x) => ({ ...x }))
+    .sort((a, b) => (a.units === b.units ? 0 : a.units > b.units ? -1 : 1));
+
   let i = 0;
   let j = 0;
 
-  while (i < debtors.length && j < creditors.length) {
-    const units = Math.min(debtors[i].units, creditors[j].units);
-    if (units > 0) {
+  while (i < ds.length && j < cs.length) {
+    const units = ds[i].units < cs[j].units ? ds[i].units : cs[j].units;
+
+    if (units > 0n) {
       result.push({
-        from: debtors[i].member,
-        to: creditors[j].member,
-        amount: units / SCALE,
+        from: ds[i].member,
+        to: cs[j].member,
+        units,
       });
     }
-    debtors[i].units -= units;
-    creditors[j].units -= units;
-    if (debtors[i].units === 0) i++;
-    if (creditors[j].units === 0) j++;
+
+    ds[i].units -= units;
+    cs[j].units -= units;
+
+    if (ds[i].units === 0n) i++;
+    if (cs[j].units === 0n) j++;
   }
+
   return result;
 }
 
 export function optimizeSettlements(balances: Balance[]): Settlement[] {
   const debtors: Node[] = balances
-    .filter((b) => b.amount < -0.0000005)
-    .map((b) => ({ member: b.member, units: Math.round(-b.amount * SCALE) }));
+    .filter((b) => b.units < 0n)
+    .map((b) => ({ member: b.member, units: -b.units }));
 
   const creditors: Node[] = balances
-    .filter((b) => b.amount > 0.0000005)
-    .map((b) => ({ member: b.member, units: Math.round(b.amount * SCALE) }));
+    .filter((b) => b.units > 0n)
+    .map((b) => ({ member: b.member, units: b.units }));
+
+  const totalDebt = debtors.reduce((sum, item) => sum + item.units, 0n);
+  const totalCredit = creditors.reduce((sum, item) => sum + item.units, 0n);
+  if (totalDebt !== totalCredit) {
+    throw new Error("Settlement balances do not net to zero");
+  }
 
   if (debtors.length + creditors.length > 10) {
-    return greedy(
-      debtors.map((x) => ({ ...x })),
-      creditors.map((x) => ({ ...x })),
-    );
+    return greedy(debtors, creditors);
   }
 
   const memo = new Map<string, Settlement[] | null>();
 
   function solve(ds: Node[], cs: Node[]): Settlement[] | null {
     const key =
-      ds.map((x) => x.units).join(",") + "|" + cs.map((x) => x.units).join(",");
+      ds.map((x) => x.units.toString()).join(",") +
+      "|" +
+      cs.map((x) => x.units.toString()).join(",");
+
     if (memo.has(key)) return memo.get(key)!;
 
-    const di = ds.findIndex((x) => x.units > 0);
+    const di = ds.findIndex((x) => x.units > 0n);
     if (di === -1) return [];
 
     let best: Settlement[] | null = null;
 
     for (let ci = 0; ci < cs.length; ci++) {
-      if (cs[ci].units <= 0) continue;
+      if (cs[ci].units <= 0n) continue;
 
-      const units = Math.min(ds[di].units, cs[ci].units);
+      const units = ds[di].units < cs[ci].units ? ds[di].units : cs[ci].units;
       const nextD = ds.map((x) => ({ ...x }));
       const nextC = cs.map((x) => ({ ...x }));
+
       nextD[di].units -= units;
       nextC[ci].units -= units;
 
@@ -71,7 +87,7 @@ export function optimizeSettlements(balances: Balance[]): Settlement[] {
         {
           from: ds[di].member,
           to: cs[ci].member,
-          amount: units / SCALE,
+          units,
         },
         ...rest,
       ];
