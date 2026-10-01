@@ -13,7 +13,7 @@ export async function POST(
       return NextResponse.json({ error: "Transaction hash is required" }, { status: 400 });
     }
 
-    const sql = getSql();
+    const sql = await getSql();
     const rows = await sql`
       SELECT es.id AS split_id, es.payment_token, es.wallet_address AS debtor,
              es.amount_usdc::text, es.status, es.settled_tx_hash, e.id AS expense_id,
