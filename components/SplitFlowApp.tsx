@@ -97,6 +97,7 @@ export default function SplitFlowApp() {
     address: USDC_ADDRESS,
     abi: usdcAbi,
     functionName: "balanceOf",
+    chainId: ARC_TESTNET_CHAIN_ID,
     args: address ? [address] : undefined,
     query: { enabled: Boolean(address) },
   });
