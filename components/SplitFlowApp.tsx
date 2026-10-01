@@ -17,12 +17,10 @@ import {
 } from "lucide-react";
 import {
   useAccount,
-  useChainId,
   useConnect,
   useDisconnect,
   useReadContract,
   useSignMessage,
-  useSwitchChain,
 } from "wagmi";
 import type { Connector } from "wagmi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -456,8 +454,6 @@ function GroupWorkspace({
   connector?: Connector;
 }) {
   const queryClient = useQueryClient();
-  const chainId = useChainId();
-  const { switchChainAsync } = useSwitchChain();
   const [showExpense, setShowExpense] = useState(false);
   const [copied, setCopied] = useState("");
   const [payingId, setPayingId] = useState<string | null>(null);
@@ -507,9 +503,6 @@ function GroupWorkspace({
     setPayingId(transfer.id);
     setActionError("");
     try {
-      if (chainId !== ARC_TESTNET_CHAIN_ID) {
-        await switchChainAsync({ chainId: ARC_TESTNET_CHAIN_ID });
-      }
       const result = await sendUsdcWithCircle(
         connector,
         transfer.to_wallet,

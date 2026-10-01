@@ -6,6 +6,7 @@ import {
   type CreateViemAdapterFromProviderParams,
 } from "@circle-fin/adapter-viem-v2";
 import type { Connector } from "wagmi";
+import { ensureArcTestnet, type BrowserProvider } from "./wallet-network";
 
 const kit = new AppKit();
 
@@ -22,6 +23,8 @@ export async function sendUsdcWithCircle(
 ): Promise<CircleSendResult> {
   const provider = (await connector.getProvider()) as
     CreateViemAdapterFromProviderParams["provider"];
+
+  await ensureArcTestnet(provider as unknown as BrowserProvider);
 
   const adapter = await createViemAdapterFromProvider({ provider });
   const result = await kit.send({

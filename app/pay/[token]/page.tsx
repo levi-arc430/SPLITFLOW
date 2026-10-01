@@ -13,10 +13,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import {
   useAccount,
-  useChainId,
   useConnect,
   useReadContract,
-  useSwitchChain,
 } from "wagmi";
 import { formatUnits } from "viem";
 import {
@@ -70,8 +68,6 @@ export default function PaymentPage() {
   const preferredConnector =
     connectors.find((item) => item.name.toLowerCase().includes("metamask")) ??
     connectors[0];
-  const chainId = useChainId();
-  const { switchChainAsync } = useSwitchChain();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
   const [lastHash, setLastHash] = useState<string | null>(null);
@@ -116,10 +112,6 @@ export default function PaymentPage() {
       if (balanceValue < Number(payment.amount_usdc)) {
         throw new Error("Not enough USDC on Arc Testnet");
       }
-      if (chainId !== ARC_TESTNET_CHAIN_ID) {
-        await switchChainAsync({ chainId: ARC_TESTNET_CHAIN_ID });
-      }
-
       const result = await sendUsdcWithCircle(
         connector,
         payment.recipient,
