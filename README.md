@@ -48,7 +48,7 @@ npm run dev
 
 ## Network
 
-The app starts on Arc Testnet (chain ID 5042002). Network-specific addresses are kept in environment variables so they can be verified before production deployment.
+The app starts on Arc Testnet (chain ID 5042002). Set DATABASE_URL in production; SplitFlow automatically creates the required Postgres schema on first database use.
 
 ## Contract
 
