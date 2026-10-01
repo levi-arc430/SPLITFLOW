@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 
 const COOKIE_NAME = "splitflow_session";
@@ -12,7 +12,11 @@ type SessionPayload = {
 function secret() {
   const value = process.env.SESSION_SECRET || process.env.DATABASE_URL;
   if (!value) throw new Error("DATABASE_URL is not configured");
-  return value;
+
+  return createHash("sha256")
+    .update("splitflow-session-v1:")
+    .update(value)
+    .digest();
 }
 
 function sign(value: string) {
