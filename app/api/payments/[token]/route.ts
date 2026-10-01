@@ -6,7 +6,7 @@ export async function GET(
   context: { params: Promise<{ token: string }> },
 ) {
   const { token } = await context.params;
-  const sql = getSql();
+  const sql = await getSql();
 
   const rows = await sql`
     SELECT es.payment_token, es.wallet_address AS debtor,
