@@ -12,7 +12,13 @@ export async function GET(
     SELECT es.payment_token, es.wallet_address AS debtor,
            es.amount_usdc::text, es.status, es.settled_tx_hash,
            e.id AS expense_id, e.description, e.paid_by AS recipient,
-           e.group_id, g.name AS group_name
+           e.group_id, g.name AS group_name,
+           EXISTS (
+             SELECT 1
+             FROM settlement_round_splits srs
+             JOIN settlement_rounds sr ON sr.id = srs.round_id
+             WHERE srs.split_id = es.id AND sr.status = 'open'
+           ) AS locked_by_settlement
     FROM expense_splits es
     JOIN expenses e ON e.id = es.expense_id
     JOIN groups g ON g.id = e.group_id
