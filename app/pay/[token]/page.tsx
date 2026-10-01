@@ -80,6 +80,7 @@ export default function PaymentPage() {
     queryKey: ["payment", token],
     queryFn: () =>
       api<{ payment: PaymentRequest }>("/api/payments/" + token),
+    refetchInterval: 5_000,
   });
 
   const balance = useReadContract({
@@ -88,7 +89,10 @@ export default function PaymentPage() {
     functionName: "balanceOf",
     chainId: ARC_TESTNET_CHAIN_ID,
     args: address ? [address] : undefined,
-    query: { enabled: Boolean(address) },
+    query: {
+      enabled: Boolean(address),
+      refetchInterval: address ? 10_000 : false,
+    },
   });
 
   const payment = paymentQuery.data?.payment;
