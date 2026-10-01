@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAddress, isAddress, parseUnits } from "viem";
 import { getSql } from "../../../../../lib/db";
 import { getSessionAddress } from "../../../../../lib/session";
+import { isUuid, safeServerMessage } from "../../../../../lib/validation";
 
 function unitsToUsdc(units: bigint) {
   const whole = units / 1_000_000n;
@@ -18,6 +19,10 @@ export async function POST(
 
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) {
+      return NextResponse.json({ error: "Group not found" }, { status: 404 });
+    }
+
     const body = (await request.json()) as {
       description?: string;
       amount?: string;
@@ -52,6 +57,18 @@ export async function POST(
 
     if (!membership.some((m) => String(m.wallet_address).toLowerCase() === wallet)) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
+    }
+
+    const activeRound = await sql`
+      SELECT 1 FROM settlement_rounds
+      WHERE group_id = ${id} AND status = 'open'
+      LIMIT 1
+    `;
+    if (activeRound[0]) {
+      return NextResponse.json(
+        { error: "Finish or cancel the active Smart Settlement before adding a new expense" },
+        { status: 409 },
+      );
     }
 
     const payerRaw = body.paidBy || wallet;
@@ -159,7 +176,7 @@ export async function POST(
     return NextResponse.json({ expense, splits }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to create expense" },
+      { error: safeServerMessage(error, "Unable to create expense") },
       { status: 500 },
     );
   }
