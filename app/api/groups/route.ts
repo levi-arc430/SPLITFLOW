@@ -8,21 +8,28 @@ export async function GET() {
   const wallet = await getSessionAddress();
   if (!wallet) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const sql = await getSql();
-  const groups = await sql`
-    SELECT DISTINCT g.id, g.name, g.created_by, g.created_at,
-      (SELECT count(*)::int FROM group_members gm2 WHERE gm2.group_id = g.id) AS member_count,
-      (SELECT count(*)::int
-       FROM expenses e
-       JOIN expense_splits es ON es.expense_id = e.id
-       WHERE e.group_id = g.id AND es.status = 'pending') AS pending_count
-    FROM groups g
-    JOIN group_members gm ON gm.group_id = g.id
-    WHERE gm.wallet_address = ${wallet}
-    ORDER BY g.created_at DESC
-  `;
+  try {
+    const sql = await getSql();
+    const groups = await sql`
+      SELECT DISTINCT g.id, g.name, g.created_by, g.created_at,
+        (SELECT count(*)::int FROM group_members gm2 WHERE gm2.group_id = g.id) AS member_count,
+        (SELECT count(*)::int
+         FROM expenses e
+         JOIN expense_splits es ON es.expense_id = e.id
+         WHERE e.group_id = g.id AND es.status = 'pending') AS pending_count
+      FROM groups g
+      JOIN group_members gm ON gm.group_id = g.id
+      WHERE gm.wallet_address = ${wallet}
+      ORDER BY g.created_at DESC
+    `;
 
-  return NextResponse.json({ groups });
+    return NextResponse.json({ groups });
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to load groups right now" },
+      { status: 503 },
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
