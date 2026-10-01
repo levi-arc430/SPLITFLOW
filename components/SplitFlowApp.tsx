@@ -117,13 +117,17 @@ export default function SplitFlowApp() {
     functionName: "balanceOf",
     chainId: ARC_TESTNET_CHAIN_ID,
     args: address ? [address] : undefined,
-    query: { enabled: Boolean(address) },
+    query: {
+      enabled: Boolean(address),
+      refetchInterval: address ? 10_000 : false,
+    },
   });
 
   const groups = useQuery({
     queryKey: ["groups"],
     queryFn: () => api<{ groups: GroupSummary[] }>("/api/groups"),
     enabled: signedIn,
+    refetchInterval: signedIn ? 10_000 : false,
   });
 
   useEffect(() => {
@@ -462,6 +466,7 @@ function GroupWorkspace({
   const detail = useQuery({
     queryKey: ["group", groupId],
     queryFn: () => api<GroupDetail>("/api/groups/" + groupId),
+    refetchInterval: 5_000,
   });
 
   const settlement = useMutation({
