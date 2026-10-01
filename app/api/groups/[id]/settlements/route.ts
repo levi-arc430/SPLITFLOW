@@ -12,7 +12,7 @@ export async function POST(
 
   try {
     const { id } = await context.params;
-    const sql = getSql();
+    const sql = await getSql();
 
     const membership = await sql`
       SELECT 1 FROM group_members
@@ -130,7 +130,7 @@ export async function DELETE(
   if (!wallet) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await context.params;
-  const sql = getSql();
+  const sql = await getSql();
 
   const membership = await sql`
     SELECT 1 FROM group_members
