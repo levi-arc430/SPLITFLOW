@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 export function createAuthChallenge(address: string, domain: string) {
   const nonce = randomUUID();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const message = [
     "SplitFlow wallet sign-in",
