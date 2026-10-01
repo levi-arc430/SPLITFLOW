@@ -142,7 +142,7 @@ export async function POST(
 
     const splits = [];
     for (const split of splitRows) {
-      const status = split.wallet === paidBy ? "paid" : "pending";
+      const status = split.wallet === paidBy || split.units === 0n ? "paid" : "pending";
       const [created] = await sql`
         INSERT INTO expense_splits (
           expense_id, wallet_address, amount_usdc, status
