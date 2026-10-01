@@ -5,16 +5,11 @@ import Link from "next/link";
 import { Check, ExternalLink, Loader2, Rocket, Wallet } from "lucide-react";
 import { createPublicClient, createWalletClient, custom, http } from "viem";
 import type { Abi, Address, EIP1193Provider, Hex } from "viem";
-import {
-  useAccount,
-  useBalance,
-  useChainId,
-  useConnect,
-  useSwitchChain,
-} from "wagmi";
+import { useAccount, useBalance, useConnect } from "wagmi";
 import artifact from "../../lib/generated/SplitFlowSettlement.json";
 import {
   ARC_EXPLORER,
+  ARC_TESTNET_CHAIN_HEX,
   ARC_TESTNET_CHAIN_ID,
   ARC_TESTNET_RPC,
   USDC_ADDRESS,
@@ -26,11 +21,61 @@ function short(value?: string | null) {
   return value.slice(0, 6) + "…" + value.slice(-4);
 }
 
+function errorCode(error: unknown) {
+  if (typeof error === "object" && error && "code" in error) {
+    return Number((error as { code?: unknown }).code);
+  }
+  return undefined;
+}
+
+async function ensureArcTestnet(provider: EIP1193Provider) {
+  try {
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: ARC_TESTNET_CHAIN_HEX }],
+    });
+  } catch (error) {
+    if (errorCode(error) !== 4902) throw error;
+
+    await provider.request({
+      method: "wallet_addEthereumChain",
+      params: [
+        {
+          chainId: ARC_TESTNET_CHAIN_HEX,
+          chainName: "Arc Testnet",
+          nativeCurrency: {
+            name: "USDC",
+            symbol: "USDC",
+            decimals: 18,
+          },
+          rpcUrls: ["https://rpc.testnet.arc.network"],
+          blockExplorerUrls: [ARC_EXPLORER],
+        },
+      ],
+    });
+
+    await provider.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: ARC_TESTNET_CHAIN_HEX }],
+    });
+  }
+
+  const selectedChain = await provider.request({ method: "eth_chainId" });
+
+  if (
+    typeof selectedChain !== "string" ||
+    selectedChain.toLowerCase() !== ARC_TESTNET_CHAIN_HEX
+  ) {
+    throw new Error(
+      "MetaMask did not switch to Arc Testnet. Open MetaMask, select Arc Testnet, then try again.",
+    );
+  }
+}
+
 export default function DeployContractPage() {
   const { address, isConnected, connector } = useAccount();
   const { connectors, connect, isPending: connecting } = useConnect();
-  const chainId = useChainId();
-  const { switchChainAsync } = useSwitchChain();
+
   const nativeBalance = useBalance({
     address,
     chainId: ARC_TESTNET_CHAIN_ID,
@@ -43,7 +88,9 @@ export default function DeployContractPage() {
 
   const [txHash, setTxHash] = useState<Hex | null>(null);
   const [contractAddress, setContractAddress] = useState<Address | null>(null);
-  const [status, setStatus] = useState<"idle" | "signing" | "confirming" | "success">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "switching" | "signing" | "confirming" | "success"
+  >("idle");
   const [error, setError] = useState("");
 
   async function deploy() {
@@ -57,11 +104,20 @@ export default function DeployContractPage() {
       }
 
       if (!connector) {
-        throw new Error("Connected wallet provider is unavailable. Reconnect the wallet and try again.");
+        throw new Error(
+          "Connected wallet provider is unavailable. Reconnect MetaMask and try again.",
+        );
       }
-      if (chainId !== ARC_TESTNET_CHAIN_ID) {
-        await switchChainAsync({ chainId: ARC_TESTNET_CHAIN_ID });
+
+      const rawProvider = await connector.getProvider();
+      if (!rawProvider) {
+        throw new Error("Unable to access the connected wallet provider");
       }
+
+      const provider = rawProvider as EIP1193Provider;
+
+      setStatus("switching");
+      await ensureArcTestnet(provider);
 
       if ((nativeBalance.data?.value ?? 0n) === 0n) {
         throw new Error(
@@ -69,15 +125,10 @@ export default function DeployContractPage() {
         );
       }
 
-      const provider = await connector.getProvider();
-      if (!provider) {
-        throw new Error("Unable to access the connected wallet provider");
-      }
-
       const walletClient = createWalletClient({
         account: address,
         chain: arcTestnet,
-        transport: custom(provider as EIP1193Provider),
+        transport: custom(provider),
       });
 
       const publicClient = createPublicClient({
@@ -111,7 +162,9 @@ export default function DeployContractPage() {
       });
 
       if (!code || code === "0x") {
-        throw new Error("Deployment receipt succeeded but no contract bytecode was found");
+        throw new Error(
+          "Deployment receipt succeeded but no contract bytecode was found",
+        );
       }
 
       setContractAddress(receipt.contractAddress);
@@ -128,7 +181,15 @@ export default function DeployContractPage() {
       );
     } catch (cause) {
       setStatus("idle");
-      setError(cause instanceof Error ? cause.message : "Contract deployment failed");
+
+      if (errorCode(cause) === 4001) {
+        setError("The MetaMask request was cancelled. Click Deploy when you are ready.");
+        return;
+      }
+
+      setError(
+        cause instanceof Error ? cause.message : "Contract deployment failed",
+      );
     }
   }
 
@@ -182,8 +243,8 @@ export default function DeployContractPage() {
             <h1>Deploy SplitFlowSettlement</h1>
             <p className="muted lead">
               This deploys the repository contract with Arc Testnet USDC
-              configured as the settlement token. Your wallet signs the
-              transaction; SplitFlow never receives your private key.
+              configured as the settlement token. MetaMask will first switch to
+              Arc Testnet, then ask you to approve the contract deployment.
             </p>
 
             <div className="requestDetails">
@@ -199,7 +260,7 @@ export default function DeployContractPage() {
 
             {isConnected && (
               <div className="walletBalanceRow">
-                <span>Connected wallet / gas balance</span>
+                <span>Connected wallet / Arc gas balance</span>
                 <b>
                   {short(address)} · {nativeBalance.data?.formatted ?? "0"} USDC
                 </b>
@@ -215,24 +276,26 @@ export default function DeployContractPage() {
                 }
               >
                 <Wallet size={17} />
-                {connecting ? "Connecting…" : "Connect wallet"}
+                {connecting ? "Connecting…" : "Connect MetaMask"}
               </button>
             ) : (
               <button
                 className="primary payButton"
-                disabled={status === "signing" || status === "confirming"}
+                disabled={status !== "idle"}
                 onClick={deploy}
               >
-                {status === "signing" || status === "confirming" ? (
+                {status !== "idle" ? (
                   <Loader2 className="spin" size={17} />
                 ) : (
                   <Rocket size={17} />
                 )}
-                {status === "signing"
-                  ? "Approve deployment in wallet…"
-                  : status === "confirming"
-                    ? "Confirming on Arc…"
-                    : "Deploy contract on Arc"}
+                {status === "switching"
+                  ? "Switching MetaMask to Arc…"
+                  : status === "signing"
+                    ? "Approve deployment in MetaMask…"
+                    : status === "confirming"
+                      ? "Confirming on Arc…"
+                      : "Deploy contract on Arc"}
               </button>
             )}
 
@@ -251,9 +314,8 @@ export default function DeployContractPage() {
             {error && <div className="errorBox">{error}</div>}
 
             <p className="hint" style={{ marginTop: 16 }}>
-              Arc documentation requires the deploying wallet to have Arc
-              Testnet gas funds. If the balance above is zero, fund the wallet
-              before deploying.
+              The deploy flow verifies MetaMask is actually on chain 5042002
+              before sending the contract creation transaction.
             </p>
           </>
         )}
