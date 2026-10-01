@@ -93,6 +93,9 @@ export default function SplitFlowApp() {
   const queryClient = useQueryClient();
   const { address, isConnected, connector } = useAccount();
   const { connectors, connect, isPending: isConnecting } = useConnect();
+  const preferredConnector =
+    connectors.find((item) => item.name.toLowerCase().includes("metamask")) ??
+    connectors[0];
   const { disconnect } = useDisconnect();
   const { signMessageAsync } = useSignMessage();
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
@@ -183,8 +186,8 @@ export default function SplitFlowApp() {
           {!isConnected ? (
             <button
               className="wallet"
-              disabled={isConnecting || !connectors[0]}
-              onClick={() => connectors[0] && connect({ connector: connectors[0] })}
+              disabled={isConnecting || !preferredConnector}
+              onClick={() => preferredConnector && connect({ connector: preferredConnector })}
             >
               <Wallet size={16} />
               {isConnecting ? "Connecting…" : "Connect wallet"}
@@ -209,8 +212,8 @@ export default function SplitFlowApp() {
           </p>
           <button
             className="primary"
-            disabled={!connectors[0]}
-            onClick={() => connectors[0] && connect({ connector: connectors[0] })}
+            disabled={!preferredConnector}
+            onClick={() => preferredConnector && connect({ connector: preferredConnector })}
           >
             <Wallet size={17} /> Connect wallet
           </button>
