@@ -51,10 +51,25 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
       ...(options?.headers || {}),
     },
   });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || "Request failed");
+  const raw = await response.text();
+  let data: Record<string, unknown> = {};
+
+  if (raw) {
+    try {
+      data = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      data = {};
+    }
   }
+
+  if (!response.ok) {
+    throw new Error(
+      typeof data.error === "string"
+        ? data.error
+        : "Request failed (" + response.status + ")",
+    );
+  }
+
   return data as T;
 }
 
