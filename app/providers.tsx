@@ -2,14 +2,13 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createConfig, http, WagmiProvider } from "wagmi";
-import { injected } from "wagmi/connectors";
 import { useState } from "react";
 import { arcTestnet } from "../lib/arc";
 
 const config = createConfig({
   chains: [arcTestnet],
-  connectors: [injected()],
   transports: { [arcTestnet.id]: http() },
+  multiInjectedProviderDiscovery: true,
   ssr: true,
 });
 
