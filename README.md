@@ -60,3 +60,6 @@ The MVP settles USDC directly from each user's connected browser wallet on Arc u
 ## Deployment
 
 The Vercel project is linked to the `main` branch. Production deployments are triggered from GitHub pushes after Vercel project setup.
+
+
+Deployment verification: wallet sessions are signed by the connected wallet.
