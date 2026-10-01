@@ -72,6 +72,10 @@ export async function getSql() {
         CREATE INDEX IF NOT EXISTS expense_splits_payment_idx
         ON expense_splits(payment_token)
       `;
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS expense_splits_member_idx
+        ON expense_splits(expense_id, wallet_address)
+      `;
 
       await sql`
         CREATE TABLE IF NOT EXISTS settlement_rounds (
@@ -83,6 +87,12 @@ export async function getSql() {
           created_at timestamptz NOT NULL DEFAULT now(),
           completed_at timestamptz
         )
+      `;
+
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS one_open_settlement_round_per_group
+        ON settlement_rounds(group_id)
+        WHERE status = 'open'
       `;
 
       await sql`
