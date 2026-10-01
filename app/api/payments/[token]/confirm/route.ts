@@ -17,7 +17,13 @@ export async function POST(
     const rows = await sql`
       SELECT es.id AS split_id, es.payment_token, es.wallet_address AS debtor,
              es.amount_usdc::text, es.status, e.id AS expense_id,
-             e.group_id, e.paid_by AS recipient
+             e.group_id, e.paid_by AS recipient,
+             EXISTS (
+               SELECT 1
+               FROM settlement_round_splits srs
+               JOIN settlement_rounds sr ON sr.id = srs.round_id
+               WHERE srs.split_id = es.id AND sr.status = 'open'
+             ) AS locked_by_settlement
       FROM expense_splits es
       JOIN expenses e ON e.id = es.expense_id
       WHERE es.payment_token = ${token}
@@ -30,7 +36,14 @@ export async function POST(
     }
 
     if (payment.status === "paid") {
-      return NextResponse.json({ status: "paid", txHash: body.txHash });
+      return NextResponse.json({ status: "paid", txHash: payment.settled_tx_hash || body.txHash });
+    }
+
+    if (payment.locked_by_settlement) {
+      return NextResponse.json(
+        { error: "This request is part of an active Smart Settlement plan" },
+        { status: 409 },
+      );
     }
 
     await verifyUsdcTransfer({
