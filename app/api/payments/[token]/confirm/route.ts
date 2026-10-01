@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql } from "../../../../../lib/db";
 import { verifyUsdcTransfer } from "../../../../../lib/verify-transfer";
+import { isUuid, safeServerMessage } from "../../../../../lib/validation";
 
 export async function POST(
   request: NextRequest,
@@ -8,6 +9,9 @@ export async function POST(
 ) {
   try {
     const { token } = await context.params;
+    if (!isUuid(token)) {
+      return NextResponse.json({ error: "Payment request not found" }, { status: 404 });
+    }
     const body = (await request.json()) as { txHash?: string };
     if (!body.txHash) {
       return NextResponse.json({ error: "Transaction hash is required" }, { status: 400 });
@@ -36,7 +40,10 @@ export async function POST(
     }
 
     if (payment.status === "paid") {
-      return NextResponse.json({ status: "paid", txHash: payment.settled_tx_hash || body.txHash });
+      return NextResponse.json({
+        status: "paid",
+        txHash: payment.settled_tx_hash || null,
+      });
     }
 
     if (payment.locked_by_settlement) {
@@ -76,7 +83,7 @@ export async function POST(
     return NextResponse.json({ status: "paid", txHash: body.txHash });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to verify payment" },
+      { error: safeServerMessage(error, "Unable to verify payment") },
       { status: 400 },
     );
   }
