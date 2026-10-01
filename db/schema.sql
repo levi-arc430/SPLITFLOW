@@ -45,6 +45,9 @@ CREATE TABLE IF NOT EXISTS expense_splits (
 CREATE INDEX IF NOT EXISTS expense_splits_payment_idx
   ON expense_splits(payment_token);
 
+CREATE UNIQUE INDEX IF NOT EXISTS expense_splits_member_idx
+  ON expense_splits(expense_id, wallet_address);
+
 CREATE TABLE IF NOT EXISTS settlement_rounds (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   group_id uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
@@ -53,6 +56,10 @@ CREATE TABLE IF NOT EXISTS settlement_rounds (
   created_at timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS one_open_settlement_round_per_group
+  ON settlement_rounds(group_id)
+  WHERE status = 'open';
 
 CREATE TABLE IF NOT EXISTS settlement_transfers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
