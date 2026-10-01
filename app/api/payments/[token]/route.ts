@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { getSql } from "../../../../lib/db";
+import { isUuid } from "../../../../lib/validation";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ token: string }> },
 ) {
   const { token } = await context.params;
+  if (!isUuid(token)) {
+    return NextResponse.json({ error: "Payment request not found" }, { status: 404 });
+  }
   const sql = await getSql();
 
   const rows = await sql`
