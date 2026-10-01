@@ -964,7 +964,7 @@ function CreateExpenseModal({
             <div className="splitPreview">
               {group.members.map((m) => (
                 <label key={m.id}>
-                  <span>{displayName(m, m.wallet_address)}</span>
+                  <span>{displayName(m, m.wallet_address, wallet)}</span>
                   <input
                     className="miniInput"
                     inputMode="decimal"
