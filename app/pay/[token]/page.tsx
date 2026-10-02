@@ -6,6 +6,7 @@ import {
   Check,
   ExternalLink,
   Loader2,
+  RefreshCw,
   Lock,
   Send,
   Wallet,
@@ -65,7 +66,7 @@ export default function PaymentPage() {
   const params = useParams<{ token: string }>();
   const token = String(params.token);
   const { address, isConnected, connector } = useAccount();
-  const { connectors, connect, isPending: connecting } = useConnect();
+  const { connectors, connectAsync, isPending: connecting } = useConnect();
   const preferredConnector =
     connectors.find((item) => item.name.toLowerCase().includes("metamask")) ??
     connectors[0];
@@ -99,10 +100,18 @@ export default function PaymentPage() {
     Boolean(address && payment) &&
     address!.toLowerCase() === payment!.debtor.toLowerCase();
 
-  function connectWallet() {
+  async function connectWallet() {
+    setError("");
     if (preferredConnector) {
-      connect({ connector: preferredConnector });
-      return;
+      try {
+        await connectAsync({ connector: preferredConnector });
+        return;
+      } catch (cause) {
+        if (!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) {
+          setError(cause instanceof Error ? cause.message : "Unable to connect wallet");
+          return;
+        }
+      }
     }
 
     openMetaMaskMobileDapp();
@@ -167,6 +176,9 @@ export default function PaymentPage() {
               ? paymentQuery.error.message
               : "This payment link does not exist."}
           </p>
+          <button className="secondary payButton" onClick={() => paymentQuery.refetch()}>
+            <RefreshCw size={14} /> Retry
+          </button>
         </div>
       </main>
     );
@@ -254,11 +266,22 @@ export default function PaymentPage() {
               <>
                 <div className="walletBalanceRow">
                   <span>Available on Arc</span>
-                  <b>{balanceValue.toFixed(2)} USDC</b>
+                  <b>
+                    {balance.isError ? "Balance unavailable" : balanceValue.toFixed(2) + " USDC"}
+                  </b>
                 </div>
+                {balance.isError && (
+                  <button className="secondary payButton" onClick={() => balance.refetch()}>
+                    <RefreshCw size={14} /> Retry balance
+                  </button>
+                )}
                 <button
                   className="primary payButton"
-                  disabled={paying || balanceValue < Number(payment.amount_usdc)}
+                  disabled={
+                    paying ||
+                    balance.isError ||
+                    balanceValue < Number(payment.amount_usdc)
+                  }
                   onClick={pay}
                 >
                   {paying ? <Loader2 className="spin" size={17} /> : <Send size={17} />}

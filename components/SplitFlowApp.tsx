@@ -11,8 +11,10 @@ import {
   LogOut,
   Plus,
   ReceiptText,
+  RefreshCw,
   RotateCcw,
   Search,
+  Share2,
   Send,
   Trash2,
   UserPlus,
@@ -101,7 +103,7 @@ function displayName(
 export default function SplitFlowApp() {
   const queryClient = useQueryClient();
   const { address, isConnected, connector } = useAccount();
-  const { connectors, connect, isPending: isConnecting } = useConnect();
+  const { connectors, connectAsync, isPending: isConnecting } = useConnect();
   const preferredConnector =
     connectors.find((item) => item.name.toLowerCase().includes("metamask")) ??
     connectors[0];
@@ -146,10 +148,18 @@ export default function SplitFlowApp() {
     }
   }, [groups.data, selectedGroup]);
 
-  function connectWallet() {
+  async function connectWallet() {
+    setAuthError("");
     if (preferredConnector) {
-      connect({ connector: preferredConnector });
-      return;
+      try {
+        await connectAsync({ connector: preferredConnector });
+        return;
+      } catch (error) {
+        if (!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) {
+          setAuthError(error instanceof Error ? error.message : "Unable to connect wallet");
+          return;
+        }
+      }
     }
     openMetaMaskMobileDapp();
   }
@@ -247,6 +257,7 @@ export default function SplitFlowApp() {
               </button>
               <span>Non-custodial · Arc Testnet · USDC</span>
             </div>
+            {authError && <div className="errorBox">{authError}</div>}
           </div>
 
           <div className="productPreview">
@@ -297,9 +308,17 @@ export default function SplitFlowApp() {
 
             {groups.error && (
               <div className="errorBox compactError">
-                {groups.error instanceof Error
-                  ? groups.error.message
-                  : "Unable to load groups"}
+                <div>
+                  {groups.error instanceof Error
+                    ? groups.error.message
+                    : "Unable to load groups"}
+                </div>
+                <button
+                  className="secondary retryButton"
+                  onClick={() => groups.refetch()}
+                >
+                  <RefreshCw size={14} /> Retry
+                </button>
               </div>
             )}
 
@@ -582,13 +601,46 @@ function GroupWorkspace({
   });
 
   async function copyText(value: string, key: string) {
-    await navigator.clipboard.writeText(value);
-    setCopied(key);
-    window.setTimeout(() => setCopied(""), 1400);
+    try {
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = value;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+        textarea.remove();
+      }
+      setCopied(key);
+      window.setTimeout(() => setCopied(""), 1400);
+    } catch {
+      setActionError("Unable to copy. Press and hold the value to copy it manually.");
+    }
   }
 
   async function copyPaymentLink(token: string) {
     await copyText(window.location.origin + "/pay/" + token, token);
+  }
+
+  async function sharePaymentLink(token: string, description: string) {
+    const url = window.location.origin + "/pay/" + token;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "SplitFlow payment request",
+          text: description + " · USDC on Arc",
+          url,
+        });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+    await copyText(url, token);
   }
 
   async function payTransfer(transfer: SettlementTransfer) {
@@ -634,7 +686,12 @@ function GroupWorkspace({
     return (
       <div className="surface">
         <div className="errorBox">
-          {detail.error instanceof Error ? detail.error.message : "Unable to load group"}
+          <div>
+            {detail.error instanceof Error ? detail.error.message : "Unable to load group"}
+          </div>
+          <button className="secondary retryButton" onClick={() => detail.refetch()}>
+            <RefreshCw size={14} /> Retry group
+          </button>
         </div>
       </div>
     );
@@ -1029,9 +1086,18 @@ function GroupWorkspace({
                   currentWallet={wallet}
                   copied={copied}
                   copyPaymentLink={copyPaymentLink}
+                  sharePaymentLink={sharePaymentLink}
                   canDelete={canDeleteExpense}
                   deleting={deleteExpense.isPending && deleteExpense.variables === expense.id}
-                  onDelete={() => deleteExpense.mutate(expense.id)}
+                  onDelete={() => {
+                    if (
+                      window.confirm(
+                        "Delete this unpaid expense? This cannot be undone.",
+                      )
+                    ) {
+                      deleteExpense.mutate(expense.id);
+                    }
+                  }}
                 />
               );
             })}
@@ -1130,6 +1196,7 @@ function ExpenseRow({
   currentWallet,
   copied,
   copyPaymentLink,
+  sharePaymentLink,
   canDelete,
   deleting,
   onDelete,
@@ -1140,6 +1207,7 @@ function ExpenseRow({
   currentWallet: string;
   copied: string;
   copyPaymentLink: (token: string) => void;
+  sharePaymentLink: (token: string, description: string) => void;
   canDelete: boolean;
   deleting: boolean;
   onDelete: () => void;
@@ -1222,6 +1290,14 @@ function ExpenseRow({
                           <Copy size={13} />
                         )}
                         {copied === split.payment_token ? "Copied" : "Copy pay link"}
+                      </button>
+                      <button
+                        className="copyLinkButton mobileOnly"
+                        onClick={() =>
+                          sharePaymentLink(split.payment_token, expense.description)
+                        }
+                      >
+                        <Share2 size={13} /> Share
                       </button>
                     )}
                   </>
@@ -1461,6 +1537,21 @@ function Modal({
   wide?: boolean;
   children: React.ReactNode;
 }) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [onClose]);
+
   return (
     <div className="modalBackdrop" onMouseDown={onClose}>
       <div
