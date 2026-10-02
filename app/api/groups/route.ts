@@ -85,8 +85,11 @@ export async function POST(request: NextRequest) {
 
     for (const member of memberMap.values()) {
       await sql`
-        INSERT INTO group_members (group_id, wallet_address, display_name)
-        VALUES (${group.id}, ${member.wallet}, ${member.name})
+        INSERT INTO group_members (group_id, wallet_address, display_name, role)
+        VALUES (
+          ${group.id}, ${member.wallet}, ${member.name},
+          ${member.wallet === wallet ? "owner" : "member"}
+        )
         ON CONFLICT (group_id, wallet_address) DO NOTHING
       `;
     }

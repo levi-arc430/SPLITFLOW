@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS group_members (
   group_id uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
   wallet_address text NOT NULL,
   display_name text,
+  role text NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member')),
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(group_id, wallet_address)
 );

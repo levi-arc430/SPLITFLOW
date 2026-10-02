@@ -17,7 +17,7 @@ export async function GET(
   const sql = await getSql();
 
   const membership = await sql`
-    SELECT g.id, g.name, g.created_by, g.created_at
+    SELECT g.id, g.name, g.created_by, g.created_at, gm.role AS viewer_role
     FROM groups g
     JOIN group_members gm ON gm.group_id = g.id
     WHERE g.id = ${id} AND gm.wallet_address = ${wallet}
@@ -30,7 +30,7 @@ export async function GET(
 
   const [members, expenses, splits, transactions, rounds, transfers] = await Promise.all([
     sql`
-      SELECT id, wallet_address, display_name, created_at
+      SELECT id, wallet_address, display_name, role, created_at
       FROM group_members WHERE group_id = ${id}
       ORDER BY created_at
     `,
@@ -75,7 +75,13 @@ export async function GET(
   ]);
 
   return NextResponse.json({
-    group: membership[0],
+    group: {
+      id: membership[0].id,
+      name: membership[0].name,
+      created_by: membership[0].created_by,
+      created_at: membership[0].created_at,
+    },
+    viewerRole: membership[0].viewer_role,
     members,
     expenses,
     splits,

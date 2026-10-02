@@ -11,8 +11,10 @@ import {
   LogOut,
   Plus,
   ReceiptText,
+  RotateCcw,
   Search,
   Send,
+  Trash2,
   UserPlus,
   Users,
   Wallet,
@@ -553,6 +555,32 @@ function GroupWorkspace({
       setActionError(e instanceof Error ? e.message : "Unable to cancel settlement"),
   });
 
+  const recalculateSettlement = useMutation({
+    mutationFn: () =>
+      api("/api/groups/" + groupId + "/settlements?recalculate=1", {
+        method: "POST",
+      }),
+    onSuccess: async () => {
+      setActionError("");
+      await queryClient.invalidateQueries({ queryKey: ["group", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["groups"] });
+    },
+    onError: (e) =>
+      setActionError(e instanceof Error ? e.message : "Unable to recalculate settlement"),
+  });
+
+  const deleteExpense = useMutation({
+    mutationFn: (expenseId: string) =>
+      api("/api/expenses/" + expenseId, { method: "DELETE" }),
+    onSuccess: async () => {
+      setActionError("");
+      await queryClient.invalidateQueries({ queryKey: ["group", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["groups"] });
+    },
+    onError: (e) =>
+      setActionError(e instanceof Error ? e.message : "Unable to delete expense"),
+  });
+
   async function copyText(value: string, key: string) {
     await navigator.clipboard.writeText(value);
     setCopied(key);
@@ -613,6 +641,7 @@ function GroupWorkspace({
   }
 
   const data = detail.data;
+  const canManageGroup = data.viewerRole === "owner" || data.viewerRole === "admin";
   const memberByWallet = new Map(
     data.members.map((member) => [member.wallet_address.toLowerCase(), member]),
   );
@@ -648,6 +677,11 @@ function GroupWorkspace({
     ? data.settlementTransfers.filter((transfer) => transfer.round_id === openRound.id)
     : [];
   const planHasPayments = planTransfers.some((transfer) => transfer.status === "paid");
+  const transfersSaved = Math.max(0, pendingSplits.length - planTransfers.length);
+  const savingsPercent =
+    pendingSplits.length > 0
+      ? Math.round((transfersSaved / pendingSplits.length) * 100)
+      : 0;
 
   const filteredExpenses = data.expenses.filter((expense) => {
     const splits = data.splits.filter((split) => split.expense_id === expense.id);
@@ -723,7 +757,8 @@ function GroupWorkspace({
         <div className="headerActions">
           <button
             className="secondary"
-            disabled={Boolean(openRound)}
+            disabled={Boolean(openRound) || !canManageGroup}
+            title={!canManageGroup ? "Only the group owner or an admin can add members" : undefined}
             onClick={() => setShowMember(true)}
           >
             <UserPlus size={15} /> Add member
@@ -766,7 +801,8 @@ function GroupWorkspace({
           </div>
           <button
             className="textButton"
-            disabled={Boolean(openRound)}
+            disabled={Boolean(openRound) || !canManageGroup}
+            title={!canManageGroup ? "Only the group owner or an admin can add members" : undefined}
             onClick={() => setShowMember(true)}
           >
             <UserPlus size={14} /> Add member
@@ -781,7 +817,7 @@ function GroupWorkspace({
                 <div className="memberAvatar">{name.slice(0, 2).toUpperCase()}</div>
                 <div className="memberInfo">
                   <b>{name}</b>
-                  <span>{shortAddress(member.wallet_address)}</span>
+                  <span>{shortAddress(member.wallet_address)} · {member.role}</span>
                 </div>
                 <button
                   className="copyButton"
@@ -827,7 +863,21 @@ function GroupWorkspace({
               <span>{pendingSplits.length} requests</span>
               <ArrowRight size={15} />
               <b>{planTransfers.length} transfers</b>
-              {!planHasPayments && (
+              <span className="savingsPill">
+                {transfersSaved} fewer · {savingsPercent}% reduction
+              </span>
+              {planHasPayments ? (
+                <button
+                  className="textButton"
+                  disabled={recalculateSettlement.isPending}
+                  onClick={() => recalculateSettlement.mutate()}
+                >
+                  <RotateCcw size={13} />
+                  {recalculateSettlement.isPending
+                    ? "Recalculating…"
+                    : "Recalculate remaining"}
+                </button>
+              ) : (
                 <button
                   className="textButton dangerText"
                   disabled={cancelSettlement.isPending}
@@ -954,17 +1004,37 @@ function GroupWorkspace({
           </div>
         ) : (
           <div className="expenseList">
-            {filteredExpenses.map((expense) => (
-              <ExpenseRow
-                key={expense.id}
-                expense={expense}
-                splits={data.splits.filter((split) => split.expense_id === expense.id)}
-                members={data.members}
-                currentWallet={wallet}
-                copied={copied}
-                copyPaymentLink={copyPaymentLink}
-              />
-            ))}
+            {filteredExpenses.map((expense) => {
+              const expenseSplits = data.splits.filter(
+                (split) => split.expense_id === expense.id,
+              );
+              const hasExternalPaidSplit = expenseSplits.some(
+                (split) =>
+                  split.wallet_address.toLowerCase() !==
+                    expense.paid_by.toLowerCase() &&
+                  split.status === "paid",
+              );
+              const canDeleteExpense =
+                !openRound &&
+                !hasExternalPaidSplit &&
+                (canManageGroup ||
+                  expense.created_by.toLowerCase() === wallet.toLowerCase());
+
+              return (
+                <ExpenseRow
+                  key={expense.id}
+                  expense={expense}
+                  splits={expenseSplits}
+                  members={data.members}
+                  currentWallet={wallet}
+                  copied={copied}
+                  copyPaymentLink={copyPaymentLink}
+                  canDelete={canDeleteExpense}
+                  deleting={deleteExpense.isPending && deleteExpense.variables === expense.id}
+                  onDelete={() => deleteExpense.mutate(expense.id)}
+                />
+              );
+            })}
           </div>
         )}
       </section>
@@ -1060,6 +1130,9 @@ function ExpenseRow({
   currentWallet,
   copied,
   copyPaymentLink,
+  canDelete,
+  deleting,
+  onDelete,
 }: {
   expense: Expense;
   splits: ExpenseSplit[];
@@ -1067,6 +1140,9 @@ function ExpenseRow({
   currentWallet: string;
   copied: string;
   copyPaymentLink: (token: string) => void;
+  canDelete: boolean;
+  deleting: boolean;
+  onDelete: () => void;
 }) {
   const payer = members.find(
     (member) => member.wallet_address.toLowerCase() === expense.paid_by.toLowerCase(),
@@ -1084,6 +1160,16 @@ function ExpenseRow({
             <span className={settled ? "statusPaid" : "statusPending"}>
               {settled ? "Settled" : "Pending"}
             </span>
+            {canDelete && (
+              <button
+                className="deleteExpenseButton"
+                title="Delete unpaid expense"
+                disabled={deleting}
+                onClick={onDelete}
+              >
+                {deleting ? <Loader2 className="spin" size={12} /> : <Trash2 size={12} />}
+              </button>
+            )}
           </div>
           <span>
             Paid by {displayName(payer, expense.paid_by, currentWallet)}

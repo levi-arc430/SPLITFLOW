@@ -34,7 +34,7 @@ export async function POST(
     const sql = await getSql();
 
     const membership = await sql`
-      SELECT 1
+      SELECT role
       FROM group_members
       WHERE group_id = ${id} AND wallet_address = ${sessionWallet}
       LIMIT 1
@@ -42,6 +42,13 @@ export async function POST(
 
     if (!membership[0]) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
+    }
+
+    if (membership[0].role !== "owner" && membership[0].role !== "admin") {
+      return NextResponse.json(
+        { error: "Only a group owner or admin can add members" },
+        { status: 403 },
+      );
     }
 
     const activeRound = await sql`
@@ -79,11 +86,11 @@ export async function POST(
     }
 
     const [member] = await sql`
-      INSERT INTO group_members (group_id, wallet_address, display_name)
-      VALUES (${id}, ${wallet}, ${name})
+      INSERT INTO group_members (group_id, wallet_address, display_name, role)
+      VALUES (${id}, ${wallet}, ${name}, 'member')
       ON CONFLICT (group_id, wallet_address)
       DO UPDATE SET display_name = COALESCE(EXCLUDED.display_name, group_members.display_name)
-      RETURNING id, wallet_address, display_name, created_at
+      RETURNING id, wallet_address, display_name, role, created_at
     `;
 
     return NextResponse.json({ member });

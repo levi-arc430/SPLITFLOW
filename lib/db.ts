@@ -34,6 +34,7 @@ export async function getSql() {
           group_id uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
           wallet_address text NOT NULL,
           display_name text,
+          role text NOT NULL DEFAULT 'member',
           created_at timestamptz NOT NULL DEFAULT now(),
           UNIQUE(group_id, wallet_address)
         )
@@ -42,6 +43,20 @@ export async function getSql() {
       await sql`
         CREATE INDEX IF NOT EXISTS group_members_wallet_idx
         ON group_members(wallet_address)
+      `;
+
+      await sql`
+        ALTER TABLE group_members
+        ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'member'
+      `;
+
+      await sql`
+        UPDATE group_members gm
+        SET role = 'owner'
+        FROM groups g
+        WHERE gm.group_id = g.id
+          AND gm.wallet_address = g.created_by
+          AND gm.role <> 'owner'
       `;
 
       await sql`

@@ -1,7 +1,44 @@
 export type Balance = { member: string; units: bigint };
 export type Settlement = { from: string; to: string; units: bigint };
+export type Obligation = { debtor: string; creditor: string; units: bigint };
+export type AppliedTransfer = { from: string; to: string; units: bigint };
 
 type Node = { member: string; units: bigint };
+
+export function buildNetBalances(
+  obligations: Obligation[],
+  appliedTransfers: AppliedTransfer[] = [],
+): Balance[] {
+  const balances = new Map<string, bigint>();
+
+  for (const obligation of obligations) {
+    if (obligation.units < 0n) throw new Error("Obligation units cannot be negative");
+    const debtor = obligation.debtor.toLowerCase();
+    const creditor = obligation.creditor.toLowerCase();
+
+    balances.set(debtor, (balances.get(debtor) || 0n) - obligation.units);
+    balances.set(creditor, (balances.get(creditor) || 0n) + obligation.units);
+  }
+
+  // A previously confirmed optimized transfer reduces the sender's debt and
+  // the recipient's credit. This lets SplitFlow safely recalculate an
+  // unfinished settlement without asking anyone to pay twice.
+  for (const transfer of appliedTransfers) {
+    if (transfer.units < 0n) throw new Error("Transfer units cannot be negative");
+    const from = transfer.from.toLowerCase();
+    const to = transfer.to.toLowerCase();
+
+    balances.set(from, (balances.get(from) || 0n) + transfer.units);
+    balances.set(to, (balances.get(to) || 0n) - transfer.units);
+  }
+
+  const total = [...balances.values()].reduce((sum, value) => sum + value, 0n);
+  if (total !== 0n) throw new Error("Settlement balances do not net to zero");
+
+  return [...balances.entries()]
+    .filter(([, units]) => units !== 0n)
+    .map(([member, units]) => ({ member, units }));
+}
 
 function greedy(debtors: Node[], creditors: Node[]): Settlement[] {
   const result: Settlement[] = [];

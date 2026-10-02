@@ -1,12 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { formatUnits, parseUnits } from "viem";
 import { getSql } from "../../../../../lib/db";
 import { getSessionAddress } from "../../../../../lib/session";
-import { optimizeSettlements } from "../../../../../lib/settlement";
+import {
+  buildNetBalances,
+  optimizeSettlements,
+  type AppliedTransfer,
+  type Obligation,
+} from "../../../../../lib/settlement";
 import { isUuid, safeServerMessage } from "../../../../../lib/validation";
 
 export async function POST(
-  _request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   const wallet = await getSessionAddress();
@@ -17,6 +22,8 @@ export async function POST(
     if (!isUuid(id)) {
       return NextResponse.json({ error: "Group not found" }, { status: 404 });
     }
+
+    const recalculate = new URL(request.url).searchParams.get("recalculate") === "1";
     const sql = await getSql();
 
     const membership = await sql`
@@ -35,7 +42,7 @@ export async function POST(
       ORDER BY created_at DESC LIMIT 1
     `;
 
-    if (existing[0]) {
+    if (existing[0] && !recalculate) {
       const transfers = await sql`
         SELECT id, round_id, from_wallet, to_wallet, amount_usdc::text,
                status, tx_hash
@@ -48,6 +55,14 @@ export async function POST(
         transfers,
         reused: true,
       });
+    }
+
+    if (existing[0] && recalculate) {
+      await sql`
+        UPDATE settlement_rounds
+        SET status = 'cancelled'
+        WHERE id = ${existing[0].id} AND status = 'open'
+      `;
     }
 
     const pending = await sql`
@@ -65,22 +80,51 @@ export async function POST(
       return NextResponse.json({ error: "This group is already settled" }, { status: 400 });
     }
 
-    const balanceMap = new Map<string, bigint>();
-    for (const row of pending) {
-      const debtor = String(row.debtor).toLowerCase();
-      const creditor = String(row.creditor).toLowerCase();
-      const units = parseUnits(String(row.amount_usdc), 6);
+    const previouslyPaid = await sql`
+      SELECT st.from_wallet, st.to_wallet, st.amount_usdc::text
+      FROM settlement_transfers st
+      JOIN settlement_rounds sr ON sr.id = st.round_id
+      WHERE sr.group_id = ${id}
+        AND sr.status = 'cancelled'
+        AND st.status = 'paid'
+      ORDER BY st.created_at
+    `;
 
-      balanceMap.set(debtor, (balanceMap.get(debtor) || 0n) - units);
-      balanceMap.set(creditor, (balanceMap.get(creditor) || 0n) + units);
-    }
+    const obligations: Obligation[] = pending.map((row) => ({
+      debtor: String(row.debtor),
+      creditor: String(row.creditor),
+      units: parseUnits(String(row.amount_usdc), 6),
+    }));
 
-    const optimized = optimizeSettlements(
-      [...balanceMap.entries()].map(([member, units]) => ({ member, units })),
-    );
+    const appliedTransfers: AppliedTransfer[] = previouslyPaid.map((row) => ({
+      from: String(row.from_wallet),
+      to: String(row.to_wallet),
+      units: parseUnits(String(row.amount_usdc), 6),
+    }));
+
+    const balances = buildNetBalances(obligations, appliedTransfers);
+    const optimized = optimizeSettlements(balances);
 
     if (!optimized.length) {
-      return NextResponse.json({ error: "No settlement transfers are required" }, { status: 400 });
+      await sql`
+        UPDATE expense_splits
+        SET status = 'paid'
+        WHERE id IN (
+          SELECT es.id
+          FROM expense_splits es
+          JOIN expenses e ON e.id = es.expense_id
+          WHERE e.group_id = ${id} AND es.status = 'pending'
+        )
+      `;
+
+      return NextResponse.json({
+        completed: true,
+        transfers: [],
+        originalPaymentCount: pending.length,
+        optimizedPaymentCount: 0,
+        transactionsSaved: pending.length,
+        recalculated: recalculate,
+      });
     }
 
     const [round] = await sql`
@@ -118,6 +162,8 @@ export async function POST(
       transfers,
       originalPaymentCount: pending.length,
       optimizedPaymentCount: transfers.length,
+      transactionsSaved: Math.max(0, pending.length - transfers.length),
+      recalculated: recalculate,
     }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -126,7 +172,6 @@ export async function POST(
     );
   }
 }
-
 
 export async function DELETE(
   _request: Request,
@@ -139,6 +184,7 @@ export async function DELETE(
   if (!isUuid(id)) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
+
   const sql = await getSql();
 
   const membership = await sql`
@@ -166,7 +212,7 @@ export async function DELETE(
   `;
   if (Number(paid[0]?.count || 0) > 0) {
     return NextResponse.json(
-      { error: "A started settlement plan cannot be cancelled" },
+      { error: "This settlement has started. Recalculate the remaining balance instead." },
       { status: 409 },
     );
   }

@@ -11,6 +11,7 @@ export type GroupMember = {
   id: string;
   wallet_address: string;
   display_name: string | null;
+  role: "owner" | "admin" | "member";
   created_at: string;
 };
 
@@ -67,6 +68,7 @@ export type SettlementTransfer = {
 };
 
 export type GroupDetail = {
+  viewerRole: "owner" | "admin" | "member";
   group: {
     id: string;
     name: string;

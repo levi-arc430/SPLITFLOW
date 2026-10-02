@@ -7,7 +7,8 @@
     "build": "npm run compile:contract && next build",
     "start": "next start",
     "typecheck": "npm run compile:contract && tsc --noEmit",
-    "compile:contract": "node scripts/compile-contract.mjs"
+    "compile:contract": "node scripts/compile-contract.mjs",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@circle-fin/adapter-viem-v2": "^1.18.0",
@@ -26,6 +27,7 @@
     "@types/react": "19.1.16",
     "@types/react-dom": "19.1.9",
     "typescript": "^5.7.2",
-    "solc": "0.8.24"
+    "solc": "0.8.24",
+    "tsx": "^4.20.6"
   }
 }
