@@ -1280,25 +1280,27 @@ function ExpenseRow({
                   <>
                     <span className="statusPending">Pending</span>
                     {!isPayer && (
-                      <button
-                        className="copyLinkButton"
-                        onClick={() => copyPaymentLink(split.payment_token)}
-                      >
-                        {copied === split.payment_token ? (
-                          <Check size={13} />
-                        ) : (
-                          <Copy size={13} />
-                        )}
-                        {copied === split.payment_token ? "Copied" : "Copy pay link"}
-                      </button>
-                      <button
-                        className="copyLinkButton mobileOnly"
-                        onClick={() =>
-                          sharePaymentLink(split.payment_token, expense.description)
-                        }
-                      >
-                        <Share2 size={13} /> Share
-                      </button>
+                      <>
+                        <button
+                          className="copyLinkButton"
+                          onClick={() => copyPaymentLink(split.payment_token)}
+                        >
+                          {copied === split.payment_token ? (
+                            <Check size={13} />
+                          ) : (
+                            <Copy size={13} />
+                          )}
+                          {copied === split.payment_token ? "Copied" : "Copy pay link"}
+                        </button>
+                        <button
+                          className="copyLinkButton mobileOnly"
+                          onClick={() =>
+                            sharePaymentLink(split.payment_token, expense.description)
+                          }
+                        >
+                          <Share2 size={13} /> Share
+                        </button>
+                      </>
                     )}
                   </>
                 )}
