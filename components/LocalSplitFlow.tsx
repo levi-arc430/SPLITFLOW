@@ -240,6 +240,7 @@ export default function LocalSplitFlow({
   const [density, setDensity] = useState<Density>("detailed");
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -251,16 +252,19 @@ export default function LocalSplitFlow({
     } catch {
       setGroups([]);
       setSelectedId(null);
+    } finally {
+      setHydrated(true);
     }
   }, [current]);
 
   useEffect(() => {
+    if (!hydrated) return;
     try {
       localStorage.setItem(storageKey(current), JSON.stringify(groups));
     } catch {
       // The UI remains usable even if persistence is blocked by the browser.
     }
-  }, [groups, current]);
+  }, [groups, current, hydrated]);
 
   useEffect(() => {
     if (!toast) return;
