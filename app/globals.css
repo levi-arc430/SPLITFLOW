@@ -419,6 +419,16 @@ body{min-height:100dvh;overflow-x:hidden}
 .quickBar::-webkit-scrollbar{display:none}
 .quickBar button{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;min-height:38px;border:1px solid #29313b;background:#12171e;color:#cbd1d9;border-radius:9px;padding:8px 10px;font-size:10px;font-weight:750;cursor:pointer}
 .quickBar button:hover{background:#1a2028;border-color:#394351}
+.localWorkspace .quickBar .deleteGroupQuick{
+  border-color:rgba(239,123,134,.45);
+  background:rgba(239,123,134,.08);
+  color:#ff9aa4;
+}
+.localWorkspace .quickBar .deleteGroupQuick:hover{
+  border-color:rgba(239,123,134,.78);
+  background:rgba(239,123,134,.14);
+  color:#ffc2c8;
+}
 .topTabs{display:flex;gap:3px;border:1px solid #252c35;background:#0d1015;border-radius:10px;padding:4px;overflow-x:auto;scrollbar-width:none}
 .topTabs::-webkit-scrollbar{display:none}
 .topTabs button{flex:1;min-width:90px;border:0;background:transparent;color:#778291;border-radius:7px;padding:8px 10px;font-size:10px;font-weight:800;cursor:pointer}
