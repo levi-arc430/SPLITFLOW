@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Check, ExternalLink, Loader2, Send, Wallet } from "lucide-react";
 import { useAccount, useConnect, useReadContract } from "wagmi";
 import { formatUnits, isAddress } from "viem";
@@ -24,12 +23,22 @@ function moneyAmount(value: string) {
 }
 
 export default function LocalPaymentPage() {
-  const params = useSearchParams();
-  const from = (params.get("from") || "").toLowerCase();
-  const to = (params.get("to") || "").toLowerCase();
-  const amount = params.get("amount") || "";
-  const label = params.get("label") || "SplitFlow payment";
-  const group = params.get("group") || "SplitFlow group";
+  const [ready, setReady] = useState(false);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [amount, setAmount] = useState("");
+  const [label, setLabel] = useState("SplitFlow payment");
+  const [group, setGroup] = useState("SplitFlow group");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setFrom((params.get("from") || "").toLowerCase());
+    setTo((params.get("to") || "").toLowerCase());
+    setAmount(params.get("amount") || "");
+    setLabel(params.get("label") || "SplitFlow payment");
+    setGroup(params.get("group") || "SplitFlow group");
+    setReady(true);
+  }, []);
 
   const { address, isConnected, connector } = useAccount();
   const { connectors, connectAsync, isPending: connecting } = useConnect();
@@ -113,6 +122,17 @@ export default function LocalPaymentPage() {
     } finally {
       setPaying(false);
     }
+  }
+
+  if (!ready) {
+    return (
+      <main className="paymentShell">
+        <div className="paymentCard card">
+          <Loader2 className="spin" size={24} />
+          <p className="muted">Loading payment request…</p>
+        </div>
+      </main>
+    );
   }
 
   if (!valid) {
