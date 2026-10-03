@@ -1236,8 +1236,9 @@ function ExpenseCard({
                 {split.status === "paid" ? "Paid" : "Pending"}
               </span>
 
-              {split.status === "pending" && split.wallet !== expense.paidBy && (
-                split.wallet === wallet ? (
+              {split.status === "pending" &&
+                split.wallet.toLowerCase() !== expense.paidBy.toLowerCase() && (
+                split.wallet.toLowerCase() === wallet.toLowerCase() ? (
                   <button
                     className="paySplitButton"
                     onClick={() => window.location.assign(requestUrl(split, expense, group))}
