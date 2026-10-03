@@ -288,6 +288,8 @@ export default function SplitFlowApp() {
           </button>
           {authError && <div className="errorBox">{authError}</div>}
         </section>
+      ) : groups.error ? (
+        <LocalSplitFlow wallet={address!} balanceLabel={balanceLabel} />
       ) : (
         <section className="appLayout">
           <aside className="sidePanel">
