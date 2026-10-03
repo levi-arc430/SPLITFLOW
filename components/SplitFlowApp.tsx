@@ -377,6 +377,10 @@ export default function SplitFlowApp() {
                 groupId={selectedGroup}
                 wallet={address!}
                 connector={connector}
+                onDeleted={() => {
+                  setSelectedGroup(null);
+                  queryClient.invalidateQueries({ queryKey: ["groups"] });
+                }}
               />
             ) : (
               <Onboarding onCreate={() => setShowGroupForm(true)} />
@@ -538,10 +542,12 @@ function GroupWorkspace({
   groupId,
   wallet,
   connector,
+  onDeleted,
 }: {
   groupId: string;
   wallet: string;
   connector?: Connector;
+  onDeleted: () => void;
 }) {
   const queryClient = useQueryClient();
   const [showExpense, setShowExpense] = useState(false);
@@ -606,6 +612,18 @@ function GroupWorkspace({
     },
     onError: (e) =>
       setActionError(e instanceof Error ? e.message : "Unable to delete expense"),
+  });
+
+  const deleteGroup = useMutation({
+    mutationFn: () => api("/api/groups/" + groupId, { method: "DELETE" }),
+    onSuccess: async () => {
+      setActionError("");
+      queryClient.removeQueries({ queryKey: ["group", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["groups"] });
+      onDeleted();
+    },
+    onError: (e) =>
+      setActionError(e instanceof Error ? e.message : "Unable to delete group"),
   });
 
   async function copyText(value: string, key: string) {
@@ -820,6 +838,27 @@ function GroupWorkspace({
         </div>
 
         <div className="headerActions">
+          {data.viewerRole === "owner" && (
+            <button
+              className="dangerButton"
+              disabled={deleteGroup.isPending}
+              onClick={() => {
+                const confirmed = window.confirm(
+                  'Delete "' +
+                    data.group.name +
+                    '"? This permanently removes the group, its expenses, settlements, and transaction records.',
+                );
+                if (confirmed) deleteGroup.mutate();
+              }}
+            >
+              {deleteGroup.isPending ? (
+                <Loader2 className="spin" size={15} />
+              ) : (
+                <Trash2 size={15} />
+              )}
+              {deleteGroup.isPending ? "Deleting…" : "Delete group"}
+            </button>
+          )}
           <button
             className="secondary"
             disabled={Boolean(openRound) || !canManageGroup}
