@@ -90,3 +90,46 @@ export async function GET(
     settlementTransfers: transfers,
   });
 }
+
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const wallet = await getSessionAddress();
+  if (!wallet) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await context.params;
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "Group not found" }, { status: 404 });
+  }
+
+  try {
+    const sql = await getSql();
+    const group = await sql`
+      SELECT id, created_by
+      FROM groups
+      WHERE id = ${id}
+      LIMIT 1
+    `;
+
+    if (!group[0]) {
+      return NextResponse.json({ error: "Group not found" }, { status: 404 });
+    }
+
+    if (group[0].created_by !== wallet) {
+      return NextResponse.json(
+        { error: "Only the group owner can delete this group" },
+        { status: 403 },
+      );
+    }
+
+    await sql`DELETE FROM groups WHERE id = ${id}`;
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to delete group right now" },
+      { status: 500 },
+    );
+  }
+}
