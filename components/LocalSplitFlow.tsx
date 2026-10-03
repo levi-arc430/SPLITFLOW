@@ -372,13 +372,6 @@ export default function LocalSplitFlow({
               <span className="sideLabel">Groups</span>
               <b>{groups.length}</b>
             </div>
-            <button
-              className="iconButton"
-              title="New group"
-              onClick={() => setShowCreate(true)}
-            >
-              <Plus size={17} />
-            </button>
           </div>
 
           <div className="modeCard">
@@ -513,7 +506,6 @@ export default function LocalSplitFlow({
         <section className="workspace">
           {!selected ? (
             <EmptyWorkspace
-              onCreate={() => setShowCreate(true)}
               onDemo={addDemoGroup}
               onHow={() => setShowHow(true)}
             />
@@ -529,7 +521,6 @@ export default function LocalSplitFlow({
               setDensity={setDensity}
               search={search}
               setSearch={setSearch}
-              onNewGroup={() => setShowCreate(true)}
               onAddExpense={() => setShowExpense(true)}
               onAddMember={() => setShowMember(true)}
               onExport={() => exportCsv(selected)}
@@ -637,11 +628,9 @@ export default function LocalSplitFlow({
 }
 
 function EmptyWorkspace({
-  onCreate,
   onDemo,
   onHow,
 }: {
-  onCreate: () => void;
   onDemo: () => void;
   onHow: () => void;
 }) {
@@ -679,9 +668,6 @@ function EmptyWorkspace({
       </div>
 
       <div className="emptyActions">
-        <button className="primary" onClick={onCreate}>
-          <Plus size={16} /> Create Group
-        </button>
         <button className="secondary" onClick={onDemo}>
           <Sparkles size={16} /> Try Demo Group
         </button>
@@ -704,7 +690,6 @@ function GroupView({
   setDensity,
   search,
   setSearch,
-  onNewGroup,
   onAddExpense,
   onAddMember,
   onExport,
@@ -724,7 +709,6 @@ function GroupView({
   setDensity: (density: Density) => void;
   search: string;
   setSearch: (value: string) => void;
-  onNewGroup: () => void;
   onAddExpense: () => void;
   onAddMember: () => void;
   onExport: () => void;
@@ -810,10 +794,7 @@ function GroupView({
       </section>
 
       <section className="quickBar">
-        <button onClick={onNewGroup}><Plus size={14} /> New Group</button>
         <button className="deleteGroupQuick" onClick={onDelete}><Trash2 size={14} /> Delete Group</button>
-        <button onClick={onAddExpense}><ReceiptText size={14} /> Add Expense</button>
-        <button onClick={() => setActiveTab("settlement")}><Sparkles size={14} /> Settle Group</button>
         <button onClick={onShare}><Share2 size={14} /> Share</button>
         <button onClick={onExport}><Download size={14} /> Export CSV</button>
       </section>
@@ -944,9 +925,6 @@ function GroupView({
                   <span className="sectionEyebrow">Members</span>
                   <h2>Group members</h2>
                 </div>
-                <button className="ghostButton" onClick={onAddMember}>
-                  <UserPlus size={14} /> Add
-                </button>
               </div>
               <div className="memberChips">
                 {group.members.map((member) => (
