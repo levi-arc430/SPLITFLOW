@@ -319,13 +319,15 @@ export default function SplitFlowApp() {
                 <span className="sideLabel">Groups</span>
                 <b>{groups.data?.groups.length || 0}</b>
               </div>
-              <button
-                className="iconButton"
-                title="Create group"
-                onClick={() => setShowGroupForm(true)}
-              >
-                <Plus size={17} />
-              </button>
+              {(groups.data?.groups.length || 0) > 0 && (
+                <button
+                  className="iconButton"
+                  title="Create group"
+                  onClick={() => setShowGroupForm(true)}
+                >
+                  <Plus size={17} />
+                </button>
+              )}
             </div>
 
             {groups.isLoading && <LoadingLine />}
@@ -903,14 +905,6 @@ function GroupWorkspace({
             <span className="sectionEyebrow">Members</span>
             <h2>Who is in this group</h2>
           </div>
-          <button
-            className="textButton"
-            disabled={Boolean(openRound) || !canManageGroup}
-            title={!canManageGroup ? "Only the group owner or an admin can add members" : undefined}
-            onClick={() => setShowMember(true)}
-          >
-            <UserPlus size={14} /> Add member
-          </button>
         </div>
 
         <div className="memberGrid">
