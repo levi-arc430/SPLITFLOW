@@ -24,6 +24,7 @@ function moneyAmount(value: string) {
 
 export default function LocalPaymentPage() {
   const [ready, setReady] = useState(false);
+  const [paymentId, setPaymentId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
@@ -32,6 +33,7 @@ export default function LocalPaymentPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    setPaymentId(params.get("pid") || "");
     setFrom((params.get("from") || "").toLowerCase());
     setTo((params.get("to") || "").toLowerCase());
     setAmount(params.get("amount") || "");
@@ -77,6 +79,48 @@ export default function LocalPaymentPage() {
       ? Number(formatUnits(balance.data, 6))
       : 0;
 
+  function markLocalSplitPaid() {
+    if (!paymentId) return;
+
+    try {
+      for (let index = 0; index < localStorage.length; index += 1) {
+        const key = localStorage.key(index);
+        if (!key?.startsWith("splitflow_local_v4_")) continue;
+
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+
+        const groups = JSON.parse(raw) as Array<{
+          expenses?: Array<{
+            splits?: Array<{
+              paymentId?: string;
+              status?: string;
+            }>;
+          }>;
+        }>;
+
+        let changed = false;
+        const next = groups.map((savedGroup) => ({
+          ...savedGroup,
+          expenses: (savedGroup.expenses || []).map((savedExpense) => ({
+            ...savedExpense,
+            splits: (savedExpense.splits || []).map((savedSplit) => {
+              if (savedSplit.paymentId !== paymentId) return savedSplit;
+              changed = true;
+              return { ...savedSplit, status: "paid" };
+            }),
+          })),
+        }));
+
+        if (changed) {
+          localStorage.setItem(key, JSON.stringify(next));
+        }
+      }
+    } catch {
+      // The onchain payment still succeeds even if local browser state cannot update.
+    }
+  }
+
   async function connectWallet() {
     setError("");
 
@@ -114,6 +158,7 @@ export default function LocalPaymentPage() {
       }
 
       setHash(txHash);
+      markLocalSplitPaid();
       await balance.refetch();
     } catch (cause) {
       setError(
