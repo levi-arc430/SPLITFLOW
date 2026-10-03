@@ -12,7 +12,7 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .logo{width:36px;height:36px;border-radius:10px;background:#eef0f4;color:#0a0c10;display:grid;place-items:center;font-size:11px;font-weight:900;letter-spacing:-.03em}
 .brandSub{font-size:10px;color:#707a89;font-weight:600;margin-top:2px}
 .navActions{display:flex;align-items:center;gap:9px}
-.wallet,.primary,.secondary,.textButton,.iconButton,.copyButton,.copyLinkButton{cursor:pointer}
+.wallet,.primary,.secondary,.dangerButton,.textButton,.iconButton,.copyButton,.copyLinkButton{cursor:pointer}
 .wallet{display:flex;align-items:center;gap:8px;min-height:38px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:12px;font-weight:700}
 .balanceChip{display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding:6px 10px}
 .balanceChip span{font-size:12px;font-weight:750}
@@ -23,6 +23,8 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .primary:hover{background:#fff}
 .secondary{border:1px solid var(--line2);background:var(--panel2);color:var(--text)}
 .secondary:hover{border-color:#4a5363}
+.dangerButton{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:9px 13px;border-radius:10px;border:1px solid rgba(239,123,134,.34);background:rgba(239,123,134,.08);color:var(--danger);font-size:12px;font-weight:780}
+.dangerButton:hover{border-color:rgba(239,123,134,.7);background:rgba(239,123,134,.13)}
 .fullButton{width:100%}
 .smallButton{min-height:32px;padding:6px 10px;font-size:11px}
 .textButton{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:#b8c0cc;padding:7px 4px;font-size:11px;font-weight:700}
