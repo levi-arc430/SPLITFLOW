@@ -15,6 +15,7 @@ import {
   QrCode,
   ReceiptText,
   Search,
+  Send,
   Share2,
   Sparkles,
   Trash2,
@@ -1236,26 +1237,35 @@ function ExpenseCard({
               </span>
 
               {split.status === "pending" && split.wallet !== expense.paidBy && (
-                <>
+                split.wallet === wallet ? (
                   <button
-                    className="copyLinkButton"
-                    onClick={() => copyRequest(split)}
+                    className="paySplitButton"
+                    onClick={() => window.location.assign(requestUrl(split, expense, group))}
                   >
-                    <Copy size={13} /> Copy
+                    <Send size={13} /> Pay my split
                   </button>
-                  <button
-                    className="copyLinkButton"
-                    onClick={() => shareRequest(split)}
-                  >
-                    <Share2 size={13} /> Share
-                  </button>
-                  <button
-                    className="copyLinkButton"
-                    onClick={() => onQr(requestUrl(split, expense, group))}
-                  >
-                    <QrCode size={13} /> QR
-                  </button>
-                </>
+                ) : (
+                  <>
+                    <button
+                      className="copyLinkButton"
+                      onClick={() => copyRequest(split)}
+                    >
+                      <Copy size={13} /> Copy
+                    </button>
+                    <button
+                      className="copyLinkButton"
+                      onClick={() => shareRequest(split)}
+                    >
+                      <Share2 size={13} /> Share
+                    </button>
+                    <button
+                      className="copyLinkButton"
+                      onClick={() => onQr(requestUrl(split, expense, group))}
+                    >
+                      <QrCode size={13} /> QR
+                    </button>
+                  </>
+                )
               )}
             </div>
           </div>
