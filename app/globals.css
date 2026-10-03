@@ -729,7 +729,51 @@ body{min-height:100dvh;overflow-x:hidden}
   color:#e9eef5;
 }
 
+.myPaymentsSurface{
+  border-color:var(--theme-border,#334155);
+  background:
+    radial-gradient(circle at 100% 0%,var(--theme-glow,rgba(113,128,255,.14)),transparent 34%),
+    #10151c;
+}
+.myPaymentsHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:12px;
+}
+.myPaymentsHeader h2{margin:4px 0;font-size:22px}
+.myPaymentsHeader p{margin:0;color:#7f8997;font-size:10px}
+.myPaymentsCount{
+  border:1px solid var(--theme-border,#334155);
+  background:var(--theme-soft,rgba(113,128,255,.12));
+  border-radius:999px;
+  padding:6px 9px;
+  font-size:9px;
+  font-weight:800;
+  color:#dfe4ff;
+  white-space:nowrap;
+}
+.myPaymentsList{display:grid;gap:8px}
+.myPaymentRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border:1px solid #27303a;
+  background:#0c1117;
+  border-radius:11px;
+  padding:11px 12px;
+}
+.myPaymentInfo{display:flex;flex-direction:column;gap:3px;min-width:0}
+.myPaymentInfo b{font-size:11px}
+.myPaymentInfo span{font-size:9px;color:#8792a0}
+.payNowButton{white-space:nowrap;min-width:150px}
+
 @media(max-width:760px){
   .themeOptions button{min-height:40px}
   .localWorkspace .statCard{min-height:110px}
+  .myPaymentsHeader{align-items:flex-start}
+  .myPaymentRow{align-items:stretch;flex-direction:column}
+  .payNowButton{width:100%;min-width:0}
 }
