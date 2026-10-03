@@ -114,10 +114,15 @@ export default function SplitFlowApp() {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [showGroupForm, setShowGroupForm] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [cloudUnavailable, setCloudUnavailable] = useState(false);
 
   const session = useQuery({
     queryKey: ["session"],
     queryFn: () => api<{ address: string | null }>("/api/auth/session"),
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    staleTime: 60_000,
   });
 
   const signedIn =
@@ -139,9 +144,25 @@ export default function SplitFlowApp() {
   const groups = useQuery({
     queryKey: ["groups"],
     queryFn: () => api<{ groups: GroupSummary[] }>("/api/groups"),
-    enabled: signedIn,
-    refetchInterval: signedIn ? 10_000 : false,
+    enabled: signedIn && !cloudUnavailable,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: false,
+    staleTime: 30_000,
   });
+
+  useEffect(() => {
+    if (groups.isError) {
+      setCloudUnavailable(true);
+    }
+  }, [groups.isError]);
+
+  useEffect(() => {
+    if (!signedIn) {
+      setCloudUnavailable(false);
+    }
+  }, [signedIn]);
 
   useEffect(() => {
     if (!selectedGroup && groups.data?.groups?.[0]) {
@@ -288,7 +309,7 @@ export default function SplitFlowApp() {
           </button>
           {authError && <div className="errorBox">{authError}</div>}
         </section>
-      ) : groups.error ? (
+      ) : cloudUnavailable || groups.isError ? (
         <LocalSplitFlow wallet={address!} balanceLabel={balanceLabel} />
       ) : (
         <section className="appLayout">
