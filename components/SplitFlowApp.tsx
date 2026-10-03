@@ -309,22 +309,6 @@ export default function SplitFlowApp() {
 
             {groups.isLoading && <LoadingLine />}
 
-            {groups.error && (
-              <div className="errorBox compactError">
-                <div>
-                  {groups.error instanceof Error
-                    ? groups.error.message
-                    : "Unable to load groups"}
-                </div>
-                <button
-                  className="secondary retryButton"
-                  onClick={() => groups.refetch()}
-                >
-                  <RefreshCw size={14} /> Retry
-                </button>
-              </div>
-            )}
-
             {!groups.isLoading && groups.data?.groups.length === 0 && (
               <button
                 className="emptyGroupButton"
