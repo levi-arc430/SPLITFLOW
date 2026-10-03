@@ -39,7 +39,8 @@ import {
   usdcAbi,
 } from "../lib/arc";
 import { extractTxHash, sendUsdcWithCircle } from "../lib/circle";
-import { openMetaMaskMobileDapp } from "../lib/mobile-wallet";\nimport LocalSplitFlow from "./LocalSplitFlow";
+import { openMetaMaskMobileDapp } from "../lib/mobile-wallet";
+import LocalSplitFlow from "./LocalSplitFlow";
 import type {
   Expense,
   ExpenseSplit,
