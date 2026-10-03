@@ -6,8 +6,11 @@ import {
   Check,
   ChevronRight,
   Copy,
+  Clock,
+  DollarSign,
   Download,
   ListFilter,
+  Palette,
   Plus,
   QrCode,
   ReceiptText,
@@ -30,6 +33,7 @@ import {
 type ViewTab = "overview" | "expenses" | "members" | "settlement" | "activity";
 type ExpenseFilter = "all" | "pending" | "paid";
 type Density = "compact" | "detailed";
+type Theme = "arc" | "aurora" | "sunset";
 type SplitType = "equal" | "custom";
 
 type Member = {
@@ -238,6 +242,7 @@ export default function LocalSplitFlow({
   const [activeTab, setActiveTab] = useState<ViewTab>("overview");
   const [filter, setFilter] = useState<ExpenseFilter>("all");
   const [density, setDensity] = useState<Density>("detailed");
+  const [theme, setTheme] = useState<Theme>("arc");
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
   const [hydrated, setHydrated] = useState(false);
@@ -265,6 +270,26 @@ export default function LocalSplitFlow({
       // The UI remains usable even if persistence is blocked by the browser.
     }
   }, [groups, current, hydrated]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("splitflow_theme_v1");
+      if (saved === "arc" || saved === "aurora" || saved === "sunset") {
+        setTheme(saved);
+      }
+    } catch {
+      // Theme persistence is optional.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem("splitflow_theme_v1", theme);
+    } catch {
+      // Theme persistence is optional.
+    }
+  }, [theme, hydrated]);
 
   useEffect(() => {
     if (!toast) return;
@@ -340,7 +365,7 @@ export default function LocalSplitFlow({
 
   return (
     <>
-      <section className={"appLayout localWorkspace " + density}>
+      <section className={"appLayout localWorkspace " + density + " theme-" + theme}>
         <aside className="sidePanel professionalSidebar">
           <div className="sideHeader">
             <div>
@@ -373,6 +398,51 @@ export default function LocalSplitFlow({
                 Cloud
               </button>
               <button className="active">Local</button>
+            </div>
+          </div>
+
+          <div className="themeCard">
+            <div className="themeCardTitle">
+              <Palette size={13} />
+              <span>Dashboard theme</span>
+            </div>
+            <div className="themeOptions">
+              <button
+                className={theme === "arc" ? "active" : ""}
+                onClick={() => {
+                  setTheme("arc");
+                  setToast("Arc Blue theme");
+                }}
+                aria-label="Use Arc Blue theme"
+                title="Arc Blue"
+              >
+                <i className="themeSwatch arcSwatch" />
+                <span>Arc</span>
+              </button>
+              <button
+                className={theme === "aurora" ? "active" : ""}
+                onClick={() => {
+                  setTheme("aurora");
+                  setToast("Aurora theme");
+                }}
+                aria-label="Use Aurora theme"
+                title="Aurora"
+              >
+                <i className="themeSwatch auroraSwatch" />
+                <span>Aurora</span>
+              </button>
+              <button
+                className={theme === "sunset" ? "active" : ""}
+                onClick={() => {
+                  setTheme("sunset");
+                  setToast("Sunset theme");
+                }}
+                aria-label="Use Sunset theme"
+                title="Sunset"
+              >
+                <i className="themeSwatch sunsetSwatch" />
+                <span>Sunset</span>
+              </button>
             </div>
           </div>
 
@@ -742,6 +812,11 @@ function GroupView({
             className={activeTab === tab ? "active" : ""}
             onClick={() => setActiveTab(tab)}
           >
+            {tab === "overview" && <WalletCards size={13} />}
+            {tab === "expenses" && <ReceiptText size={13} />}
+            {tab === "members" && <Users size={13} />}
+            {tab === "settlement" && <Sparkles size={13} />}
+            {tab === "activity" && <Clock size={13} />}
             {text}
           </button>
         ))}
@@ -750,23 +825,35 @@ function GroupView({
       {activeTab === "overview" && (
         <>
           <section className="statGrid">
-            <div className="statCard">
-              <span>Total Group Spend</span>
+            <div className="statCard spendCard">
+              <div className="statTop">
+                <span>Total Group Spend</span>
+                <i className="statIcon"><DollarSign size={15} /></i>
+              </div>
               <b>{money(total)}</b>
               <small>Recorded in USDC</small>
             </div>
-            <div className="statCard">
-              <span>Pending Amount</span>
+            <div className="statCard pendingCard">
+              <div className="statTop">
+                <span>Pending Amount</span>
+                <i className="statIcon"><Clock size={15} /></i>
+              </div>
               <b className="amber">{money(pendingTotal)}</b>
               <small>{pendingSplits.length} open shares</small>
             </div>
-            <div className="statCard">
-              <span>Members</span>
+            <div className="statCard membersCard">
+              <div className="statTop">
+                <span>Members</span>
+                <i className="statIcon"><Users size={15} /></i>
+              </div>
               <b>{group.members.length}</b>
               <small>Wallets in this group</small>
             </div>
-            <div className="statCard">
-              <span>Settlement Savings</span>
+            <div className="statCard savingsCard">
+              <div className="statTop">
+                <span>Settlement Savings</span>
+                <i className="statIcon"><Sparkles size={15} /></i>
+              </div>
               <b className="green">{savedTransfers}</b>
               <small>{savingsPercent}% fewer transfers</small>
             </div>
