@@ -533,6 +533,22 @@ export default function LocalSplitFlow({
               onAddExpense={() => setShowExpense(true)}
               onAddMember={() => setShowMember(true)}
               onExport={() => exportCsv(selected)}
+              onDelete={() => {
+                const confirmed = window.confirm(
+                  'Delete "' +
+                    selected.name +
+                    '"? This permanently removes the group and all of its local expenses and activity.',
+                );
+                if (!confirmed) return;
+
+                setGroups((all) => {
+                  const remaining = all.filter((group) => group.id !== selected.id);
+                  setSelectedId(remaining[0]?.id || null);
+                  return remaining;
+                });
+                setActiveTab("overview");
+                setToast("Group deleted");
+              }}
               onShare={() =>
                 shareText(
                   "SplitFlow group",
@@ -692,6 +708,7 @@ function GroupView({
   onAddExpense,
   onAddMember,
   onExport,
+  onDelete,
   onShare,
   onSave,
   onToast,
@@ -711,6 +728,7 @@ function GroupView({
   onAddExpense: () => void;
   onAddMember: () => void;
   onExport: () => void;
+  onDelete: () => void;
   onShare: () => void;
   onSave: (group: Group) => void;
   onToast: (message: string) => void;
@@ -793,6 +811,7 @@ function GroupView({
 
       <section className="quickBar">
         <button onClick={onNewGroup}><Plus size={14} /> New Group</button>
+        <button className="deleteGroupQuick" onClick={onDelete}><Trash2 size={14} /> Delete Group</button>
         <button onClick={onAddExpense}><ReceiptText size={14} /> Add Expense</button>
         <button onClick={() => setActiveTab("settlement")}><Sparkles size={14} /> Settle Group</button>
         <button onClick={onShare}><Share2 size={14} /> Share</button>
