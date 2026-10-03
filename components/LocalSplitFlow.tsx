@@ -755,6 +755,21 @@ function GroupView({
     ? Math.round((savedTransfers / obligations.length) * 100)
     : 0;
 
+  const myPendingPayments = group.expenses.flatMap((expense) =>
+    expense.splits
+      .filter(
+        (split) =>
+          split.status === "pending" &&
+          split.wallet.toLowerCase() === wallet.toLowerCase() &&
+          split.wallet.toLowerCase() !== expense.paidBy.toLowerCase(),
+      )
+      .map((split) => ({ expense, split })),
+  );
+  const myPendingTotal = myPendingPayments.reduce(
+    (sum, item) => sum + Number(item.split.amount),
+    0,
+  );
+
   const filteredExpenses = group.expenses.filter((expense) => {
     const status = expenseStatus(expense);
     const matchesFilter = filter === "all" || status === filter;
@@ -859,6 +874,42 @@ function GroupView({
               <small>{savingsPercent}% fewer transfers</small>
             </div>
           </section>
+
+          {myPendingPayments.length > 0 && (
+            <section className="surface myPaymentsSurface">
+              <div className="myPaymentsHeader">
+                <div>
+                  <span className="sectionEyebrow">Your payments</span>
+                  <h2>You owe {money(myPendingTotal)}</h2>
+                  <p>Pay your pending share directly with USDC on Arc Testnet.</p>
+                </div>
+                <span className="myPaymentsCount">
+                  {myPendingPayments.length} pending
+                </span>
+              </div>
+
+              <div className="myPaymentsList">
+                {myPendingPayments.map(({ expense, split }) => (
+                  <div className="myPaymentRow" key={split.paymentId}>
+                    <div className="myPaymentInfo">
+                      <b>{expense.description}</b>
+                      <span>
+                        Pay {label(group, expense.paidBy, wallet)} · {money(split.amount)}
+                      </span>
+                    </div>
+                    <button
+                      className="primary payNowButton"
+                      onClick={() =>
+                        window.location.assign(requestUrl(split, expense, group))
+                      }
+                    >
+                      <Send size={15} /> Pay {Number(split.amount).toFixed(2)} USDC
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="surface progressSurface">
             <div className="progressHeader">
