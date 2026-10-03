@@ -39,7 +39,7 @@ import {
   usdcAbi,
 } from "../lib/arc";
 import { extractTxHash, sendUsdcWithCircle } from "../lib/circle";
-import { openMetaMaskMobileDapp } from "../lib/mobile-wallet";
+import { openMetaMaskMobileDapp } from "../lib/mobile-wallet";\nimport LocalSplitFlow from "./LocalSplitFlow";
 import type {
   Expense,
   ExpenseSplit,
@@ -377,7 +377,7 @@ export default function SplitFlowApp() {
         </section>
       )}
 
-      {showGroupForm && (
+      {showGroupForm && !groups.error && (
         <CreateGroupModal
           onClose={() => setShowGroupForm(false)}
           onCreated={(id) => {

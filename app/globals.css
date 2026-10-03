@@ -367,3 +367,9 @@ body{min-height:100dvh;overflow-x:hidden}
   .previewRows>div{grid-template-columns:1fr auto}
   .previewRows em{grid-column:2}
 }
+
+.localModeBanner{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 9px;padding:8px 9px;border:1px solid #34301f;background:#1b1810;border-radius:9px;color:#e8c86e;font-size:9px;font-weight:750}
+.localModeBanner span{display:flex;align-items:center;gap:6px}
+.localModeBanner small{color:#9e916c;font-size:8px}
+.localModeBanner .networkDot{background:#e9b95f}
+@media(max-width:680px){.localModeBanner{flex-wrap:wrap}}
