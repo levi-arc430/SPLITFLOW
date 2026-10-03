@@ -1304,6 +1304,8 @@ function ExpenseRow({
           );
           const isPayer =
             split.wallet_address.toLowerCase() === expense.paid_by.toLowerCase();
+          const isCurrentWallet =
+            split.wallet_address.toLowerCase() === currentWallet.toLowerCase();
 
           return (
             <div className="splitRow" key={split.id}>
@@ -1321,27 +1323,38 @@ function ExpenseRow({
                   <>
                     <span className="statusPending">Pending</span>
                     {!isPayer && (
-                      <>
+                      isCurrentWallet ? (
                         <button
-                          className="copyLinkButton"
-                          onClick={() => copyPaymentLink(split.payment_token)}
-                        >
-                          {copied === split.payment_token ? (
-                            <Check size={13} />
-                          ) : (
-                            <Copy size={13} />
-                          )}
-                          {copied === split.payment_token ? "Copied" : "Copy pay link"}
-                        </button>
-                        <button
-                          className="copyLinkButton mobileOnly"
+                          className="paySplitButton"
                           onClick={() =>
-                            sharePaymentLink(split.payment_token, expense.description)
+                            window.location.assign("/pay/" + split.payment_token)
                           }
                         >
-                          <Share2 size={13} /> Share
+                          <Send size={13} /> Pay my split
                         </button>
-                      </>
+                      ) : (
+                        <>
+                          <button
+                            className="copyLinkButton"
+                            onClick={() => copyPaymentLink(split.payment_token)}
+                          >
+                            {copied === split.payment_token ? (
+                              <Check size={13} />
+                            ) : (
+                              <Copy size={13} />
+                            )}
+                            {copied === split.payment_token ? "Copied" : "Copy pay link"}
+                          </button>
+                          <button
+                            className="copyLinkButton mobileOnly"
+                            onClick={() =>
+                              sharePaymentLink(split.payment_token, expense.description)
+                            }
+                          >
+                            <Share2 size={13} /> Share
+                          </button>
+                        </>
+                      )
                     )}
                   </>
                 )}
