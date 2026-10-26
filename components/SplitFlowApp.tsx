@@ -26,12 +26,11 @@ import {
   useAccount,
   useConnect,
   useDisconnect,
-  useReadContract,
   useSignMessage,
 } from "wagmi";
 import type { Connector } from "wagmi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatUnits } from "viem";
+import { createPublicClient, fallback, formatUnits, http } from "viem";
 import {
   ARC_EXPLORER,
   ARC_TESTNET_CHAIN_ID,
@@ -129,16 +128,41 @@ export default function SplitFlowApp() {
     Boolean(address) &&
     session.data?.address?.toLowerCase() === address?.toLowerCase();
 
-  const balance = useReadContract({
-    address: USDC_ADDRESS,
-    abi: usdcAbi,
-    functionName: "balanceOf",
-    chainId: ARC_TESTNET_CHAIN_ID,
-    args: address ? [address] : undefined,
-    query: {
-      enabled: Boolean(address),
-      refetchInterval: address ? 10_000 : false,
+  const balance = useQuery({
+    queryKey: ["usdc-balance", address?.toLowerCase()],
+    enabled: Boolean(address),
+    queryFn: async () => {
+      const client = createPublicClient({
+        chain: {
+          id: ARC_TESTNET_CHAIN_ID,
+          name: "Arc Testnet",
+          nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+          rpcUrls: {
+            default: {
+              http: [
+                process.env.NEXT_PUBLIC_ARC_RPC_URL || "https://rpc.testnet.arc.network",
+                "https://rpc.quicknode.testnet.arc.network",
+                "https://rpc.blockdaemon.testnet.arc.network",
+              ],
+            },
+          },
+        },
+        transport: fallback([
+          http(process.env.NEXT_PUBLIC_ARC_RPC_URL || "https://rpc.testnet.arc.network", { timeout: 8_000 }),
+          http("https://rpc.quicknode.testnet.arc.network", { timeout: 8_000 }),
+          http("https://rpc.blockdaemon.testnet.arc.network", { timeout: 8_000 }),
+        ]),
+      });
+      return client.readContract({
+        address: USDC_ADDRESS,
+        abi: usdcAbi,
+        functionName: "balanceOf",
+        args: [address as `0x${string}`],
+      });
     },
+    refetchInterval: 10_000,
+    retry: 2,
+    staleTime: 5_000,
   });
 
   const groups = useQuery({
@@ -218,9 +242,14 @@ export default function SplitFlowApp() {
   const balanceLabel =
     typeof balance.data === "bigint"
       ? Number(formatUnits(balance.data, 6)).toLocaleString(undefined, {
-          maximumFractionDigits: 2,
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 6,
         })
-      : "0.00";
+      : balance.isLoading
+        ? "Loading…"
+        : balance.isError
+          ? "Unavailable"
+          : "0.00";
 
   return (
     <main className="shell">
@@ -1160,23 +1189,18 @@ function GroupWorkspace({
         ) : (
           <div className="transactionList">
             {data.transactions.map((tx) => (
-              <a
-                key={tx.id}
-                className="transactionRow"
-                href={ARC_EXPLORER + "/tx/" + tx.tx_hash}
-                target="_blank"
-                rel="noreferrer"
-              >
+              <div key={tx.id} className="transactionRow">
                 <div className="txIcon"><Check size={14} /></div>
                 <div className="activityMain">
                   <b>{shortAddress(tx.from_wallet)} → {shortAddress(tx.to_wallet)}</b>
                   <span>{new Date(tx.created_at).toLocaleString()}</span>
+                  <span className="txHashText">{shortAddress(tx.tx_hash)}</span>
+                  <TransactionExplorerLinks txHash={tx.tx_hash} />
                 </div>
                 <div className="txAmount">
                   {money(tx.amount_usdc)}
-                  <ExternalLink size={13} />
                 </div>
-              </a>
+              </div>
             ))}
           </div>
         )}
@@ -1625,6 +1649,42 @@ function Modal({
         </div>
         {children}
       </div>
+    </div>
+  );
+}
+
+
+function TransactionExplorerLinks({ txHash }: { txHash: string }) {
+  const receipt = useQuery({
+    queryKey: ["arc-transaction-receipt", txHash],
+    queryFn: async () => {
+      const client = createPublicClient({
+        transport: fallback([
+          http("https://rpc.testnet.arc.network", { timeout: 8_000 }),
+          http("https://rpc.quicknode.testnet.arc.network", { timeout: 8_000 }),
+          http("https://rpc.blockdaemon.testnet.arc.network", { timeout: 8_000 }),
+        ]),
+      });
+      return client.getTransactionReceipt({ hash: txHash as `0x${string}` });
+    },
+    retry: 1,
+    staleTime: 60_000,
+  });
+
+  const blockNumber = receipt.data?.blockNumber?.toString();
+
+  return (
+    <div className="txExplorerLinks">
+      <a href={ARC_EXPLORER + "/tx/" + txHash} target="_blank" rel="noreferrer">
+        View transaction on ArcScan <ExternalLink size={12} />
+      </a>
+      {blockNumber ? (
+        <a href={ARC_EXPLORER + "/block/" + blockNumber} target="_blank" rel="noreferrer">
+          Block #{blockNumber} details <ExternalLink size={12} />
+        </a>
+      ) : (
+        <span>{receipt.isLoading ? "Loading block details…" : "Block details unavailable"}</span>
+      )}
     </div>
   );
 }
